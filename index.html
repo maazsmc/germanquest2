@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>German Quest - Gamified Vocabulary Learning</title>
+    <!-- CSS stylesheet link -->
+    <link rel="stylesheet" href="/src/index.css" />
+    <!-- Google Identity Services script for OAuth -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Offline RPG Client -->
+  </head>
+  <body class="bg-[#0d0f14] text-slate-100 min-h-screen flex flex-col font-sans transition-all duration-300">
+
+    <!-- LANDING WELCOME PAGE (Visible when not logged in) -->
+    <div id="landing-page-interface" class="hidden flex-col min-h-screen bg-[#07090c] relative overflow-hidden transition-all duration-300">
+      <!-- Ambient Background Glows -->
+      <div class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-violet-600/5 rounded-full blur-[140px] pointer-events-none"></div>
+      <div class="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[140px] pointer-events-none"></div>
+
+      <!-- Landing Navigation Header -->
+      <header class="border-b border-slate-900 bg-[#090b0e]/70 backdrop-blur px-4 py-4 sm:px-8 z-30 sticky top-0">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl animate-float">🇩🇪</span>
+            <div>
+              <h2 class="text-lg font-display font-black tracking-tight bg-gradient-to-r from-violet-400 via-purple-350 to-blue-400 bg-clip-text text-transparent leading-none">GERMAN QUEST</h2>
+              <span class="text-[9px] uppercase font-mono tracking-widest text-slate-500">Vocabulary RPG Syndicate</span>
+            </div>
+          </div>
+          <!-- Menu Links (Desktop) -->
+          <nav class="hidden md:flex items-center gap-8 text-xs font-mono text-slate-400">
+            <a href="#features-anchor" class="hover:text-violet-400 transition-colors">QUEST MODES</a>
+            <a href="#how-it-works" class="hover:text-violet-400 transition-colors">METHODOLOGY</a>
+            <a href="#spell-forger-sandbox" class="hover:text-violet-400 transition-colors">SPELL FORGER</a>
+          </nav>
+          <!-- Authentication Triggers -->
+          <div class="flex items-center gap-3">
+            <button class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 font-bold text-xs text-white shadow-md glow-purple cursor-pointer flex items-center gap-1.5 transition-all hover:scale-105 animate-pulse" id="landing-sim-btn">
+              <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-6.887 4.114-4.636 0-8.358-3.722-8.358-8.358s3.722-8.358 8.358-8.358c2.15 0 4.152.822 5.673 2.34l3.056-3.056C18.232 1.346 15.356 0 12.24 0 5.48 0 0 5.48 0 12.24s5.48 12.24 12.24 12.24c6.702 0 12.24-5.388 12.24-12.24 0-.776-.08-1.536-.208-2.28H12.24z"/>
+              </svg>
+              <span>Sign in with Google</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- HERO SPLIT SECTION -->
+      <section class="max-w-7xl w-full mx-auto px-4 sm:px-8 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 relative z-10 flex-1">
+        <!-- Hero Details -->
+        <div class="flex-1 text-center lg:text-left flex flex-col gap-6">
+          <div class="inline-flex self-center lg:self-start items-center gap-2 px-3 py-1 bg-violet-950/40 border border-violet-500/20 text-violet-300 font-mono text-[10px] uppercase tracking-wider mb-2 rounded-full">
+            🏆 Gamified Fluency Crusade
+          </div>
+          <h1 class="text-4xl sm:text-6xl font-display font-extrabold leading-[1.1] tracking-tight">
+            Forge German <br/>
+            <span class="bg-gradient-to-r from-violet-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">Vocabulary Spells</span>
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed max-w-xl">
+            Break free from repetitive flashcards! Embark on an active RPG guild. Conquer listening quests, match magic language runes, battle vocabulary bosses, and secure your learning chronicle offline or locally.
+          </p>
+          <!-- Hero Actions -->
+          <div class="flex flex-wrap items-center justify-center lg:justify-start gap-4 mt-2">
+            <button class="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-xs text-white shadow-lg glow-purple cursor-pointer flex items-center gap-2 hover:scale-103 transition-all" id="hero-cta-sim">
+              <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-6.887 4.114-4.636 0-8.358-3.722-8.358-8.358s3.722-8.358 8.358-8.358c2.15 0 4.152.822 5.673 2.34l3.056-3.056C18.232 1.346 15.356 0 12.24 0 5.48 0 0 5.48 0 12.24s5.48 12.24 12.24 12.24c6.702 0 12.24-5.388 12.24-12.24 0-.776-.08-1.536-.208-2.28H12.24z"/>
+              </svg>
+              <span>Sign in with Google</span>
+            </button>
+            <button class="px-6 py-3.5 rounded-2xl border border-slate-800 hover:border-slate-700 hover:bg-slate-900 font-bold text-xs text-slate-350 cursor-pointer transition-all flex items-center gap-1.5" id="hero-cta-guest-quick">
+              ⚡ Quick Start (Guest)
+            </button>
+          </div>
+          <!-- Real-time counter tracker -->
+          <div class="grid grid-cols-3 gap-4 border-t border-slate-900/60 pt-6 mt-4 max-w-md mx-auto lg:mx-0">
+            <div>
+              <p class="text-xl font-mono font-bold text-violet-400">4+</p>
+              <p class="text-[10px] uppercase font-mono tracking-wide text-slate-500">Quest Arenas</p>
+            </div>
+            <div>
+              <p class="text-xl font-mono font-bold text-emerald-400">100%</p>
+              <p class="text-[10px] uppercase font-mono tracking-wide text-slate-500">Data Ownership</p>
+            </div>
+            <div>
+              <p class="text-xl font-mono font-bold text-amber-500">🦉 AI</p>
+              <p class="text-[10px] uppercase font-mono tracking-wide text-slate-500">Citadel Guidance</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Sandbox Card Box -->
+        <div class="w-full lg:w-[460px] flex flex-col gap-4 relative" id="spell-forger-sandbox">
+          <!-- Ambient lighting -->
+          <div class="absolute inset-0 bg-violet-600/10 rounded-3xl blur-2xl -z-10"></div>
+          
+          <div class="glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col gap-4 shadow-xl select-none" id="sandbox-card">
+            <!-- Header of card -->
+            <div class="flex justify-between items-center pb-2 border-b border-slate-900">
+              <span class="text-xs uppercase font-mono text-violet-400 tracking-wider">🔮 Quest Scroll Preview</span>
+              <span class="text-[10px] px-2 py-0.5 bg-[#17112c] border border-violet-500/25 rounded-full text-violet-300 font-mono">SPELL LEVEL I</span>
+            </div>
+
+            <!-- Spell body -->
+            <div class="text-center py-6 flex flex-col items-center gap-2">
+              <span class="text-4xl animate-pulse">📜</span>
+              <h3 class="text-2xl font-display font-bold text-white mt-2" id="sandbox-german-word">die Zauberei</h3>
+              <p class="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-medium">Target Word</p>
+            </div>
+
+            <!-- Translation Sandbox Form -->
+            <div class="flex flex-col gap-3">
+              <label class="text-[10px] uppercase font-mono text-slate-400 block tracking-wide">Type the English Translation</label>
+              <input type="text" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 placeholder-slate-700 text-xs focus:outline-none focus:border-violet-500 text-center font-bold text-violet-300" id="sandbox-input" placeholder="Hint: starts with 'm'... (e.g., magic)">
+              
+              <button class="w-full py-2.5 rounded-xl bg-violet-600/20 border border-violet-500/30 text-xs font-semibold hover:bg-violet-600 hover:text-white transition-all text-violet-300 flex items-center justify-center gap-2 cursor-pointer" id="sandbox-forge-btn">
+                <span>Cast Vocabulary Spell ⚡</span>
+              </button>
+            </div>
+
+            <div class="text-center text-[10px] text-slate-500 leading-normal" id="sandbox-feedback">
+              Test your spell forging above! Correct translation of <b>die Zauberei</b> is <b>magic</b>.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bento Grid Features Section -->
+      <section id="features-anchor" class="bg-slate-950/20 border-t border-slate-900/60 py-16 px-4">
+        <div class="max-w-7xl mx-auto flex flex-col gap-10">
+          <div class="text-center max-w-2xl mx-auto flex flex-col gap-2">
+            <h2 class="text-2xl sm:text-3xl font-display font-bold text-white">Choose Your Training Ground</h2>
+            <p class="text-xs sm:text-sm text-slate-400">German Quest transforms vocabulary learning into action-packed game arenas. See the modules available inside:</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Feature 1 -->
+            <div class="glass-panel p-6 rounded-2xl border border-slate-900/60 flex flex-col gap-3">
+              <div class="w-12 h-12 rounded-xl bg-violet-900/30 border border-violet-500/25 flex items-center justify-center text-xl">⚔️</div>
+              <h4 class="font-display font-bold text-sm text-white mt-1">Four Training Arenas</h4>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Unlock <b>Match Runes</b> (matching tiles), <b>Vocab Quest</b> (multiple choices), <b>Listening Spell</b> (audio triggers), and the legendary <b>Vocab Noun Boss battles</b> with dual feedback lines.
+              </p>
+            </div>
+            <!-- Feature 2 -->
+            <div class="glass-panel p-6 rounded-2xl border border-slate-900/60 flex flex-col gap-3">
+              <div class="w-12 h-12 rounded-xl bg-violet-900/30 border border-violet-500/25 flex items-center justify-center text-xl">🧙‍♂️</div>
+              <h4 class="font-display font-bold text-sm text-white mt-1">AI Citadel Owl Tutor</h4>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Converse in real German with Companion Owl Adler! Ask questions, test slang sentences, and receive real-time lore explanations tailored to your vocabulary status.
+              </p>
+            </div>
+            <!-- Feature 3 -->
+            <div class="glass-panel p-6 rounded-2xl border border-slate-950/60 bg-gradient-to-tr from-[#141223]/30 to-[#0e0f14] flex flex-col gap-3">
+              <div class="w-12 h-12 rounded-xl bg-purple-900/30 border border-purple-500/25 flex items-center justify-center text-xl">🛡️</div>
+              <h4 class="font-display font-bold text-sm text-white mt-1">Local-First Profiles</h4>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Run local-first adventure questing with zero cloud subscription fees. Auto-saves levels, active streak freezes, target lists, gold coins, and shop items securely.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- METHODOLOGY SECTION -->
+      <section id="how-it-works" class="py-16 px-4 max-w-7xl mx-auto w-full border-t border-slate-900/60">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div class="flex flex-col gap-5">
+            <h2 class="text-2xl sm:text-3xl font-display font-bold text-white">How The Vocabulary RPG Works</h2>
+            <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Scientific SRS (Spaced Repetition System) mechanics are concealed neatly behind heroic roleplaying badges. Your path to mastery is broken into modular, exciting phases:
+            </p>
+
+            <div class="flex flex-col gap-5 mt-2">
+              <div class="flex gap-4 items-start">
+                <span class="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/35 flex items-center justify-center text-[11px] font-mono text-violet-350 shrink-0 font-bold">1</span>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-100">Forge Spells in the Quest Book</h4>
+                  <p class="text-[11px] text-slate-400 leading-relaxed mt-0.5">Register new vocabularies on-the-fly or import curated category sets from the master forge. Categorize and favorite them.</p>
+                </div>
+              </div>
+              <div class="flex gap-4 items-start">
+                <span class="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/35 flex items-center justify-center text-[11px] font-mono text-violet-350 shrink-0 font-bold">2</span>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-100">Vanquish Lexical Bosses</h4>
+                  <p class="text-[11px] text-slate-400 leading-relaxed mt-0.5">Enter live training arenas. Test your spelling accuracy, audio matching speed, and gender pronouns against boss health monitors.</p>
+                </div>
+              </div>
+              <div class="flex gap-4 items-start">
+                <span class="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/35 flex items-center justify-center text-[11px] font-mono text-violet-350 shrink-0 font-bold">3</span>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-100">Trade Gold at the Lore Store</h4>
+                  <p class="text-[11px] text-slate-400 leading-relaxed mt-0.5">Earn Gold Coins from successful missions to spend on Streak Freeze potions or acquire high-level status titles like Teutonic Champion.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Methodology Graphics/Interactive Testimonial Box -->
+          <div class="bg-gradient-to-br from-indigo-950/20 via-[#0e1017] to-slate-950 p-6 rounded-3xl border border-slate-800 flex flex-col gap-4">
+            <h4 class="text-xs font-bold font-mono text-emerald-400 flex items-center gap-1">💬 Guild Fighter Testimonial</h4>
+            <blockquote class="text-slate-300 text-xs italic leading-relaxed">
+              "Being able to review my German vocabulary words inside mini dungeons is brilliant! The dual-health gamified layout kept me fully focused. Plus, having everything save onto my local browser database feels secure and completely offline."
+            </blockquote>
+            <div class="flex items-center gap-3 border-t border-slate-900/60 pt-4 mt-1">
+              <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-xs">🦁</div>
+              <div>
+                <p class="text-[11px] font-semibold text-slate-200">Lady Clara</p>
+                <p class="text-[9px] text-slate-400 font-mono">Level 4 Word Gladiator</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- footer -->
+      <footer class="border-t border-slate-900/80 py-8 px-4 text-center mt-auto bg-slate-950/40">
+        <p class="text-[11px] text-slate-500 font-mono">German Quest - Gamified Vocabulary Learning Site © 2026. Made for adventurous learners.</p>
+      </footer>
+    </div>
+
+    <!-- CORE CHRONICLE APP (Visible when logged in) -->
+    <div id="app-core-interface" class="hidden flex-col min-h-screen">
+      <!-- Top HUD Navigation / Profiles -->
+      <header class="glass-panel sticky top-0 z-40 border-b border-slate-800/80 px-4 py-3 sm:px-6">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-blue-500 flex items-center justify-center shadow-lg glow-purple cursor-pointer hover:scale-105 transition-transform" id="nav-logo">
+            <span class="font-display font-bold text-lg text-white">🇩🇪</span>
+          </div>
+          <div>
+            <h1 class="text-xl font-display font-medium bg-gradient-to-r from-violet-400 via-purple-300 to-blue-400 bg-clip-text text-transparent flex items-center gap-2">
+              GERMAN QUEST
+            </h1>
+            <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Vocabulary RPG Chronicle</p>
+          </div>
+        </div>
+
+        <!-- HUD Statistics -->
+        <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-6">
+          <!-- Level Badge -->
+          <div class="flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 rounded-lg px-3 py-1.5 shadow-inner">
+            <div class="w-7 h-7 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 text-xs font-mono font-bold flex items-center justify-center text-white" id="hud-level">1</div>
+            <div>
+              <p class="text-[9px] text-slate-400 font-mono uppercase leading-none">Level</p>
+              <p class="text-xs font-medium text-slate-200" id="hud-rank-title">Novice Recruit</p>
+            </div>
+          </div>
+
+          <!-- XP Bar -->
+          <div class="flex flex-col w-28 sm:w-36">
+            <div class="flex justify-between text-[10px] font-mono leading-none mb-1 text-slate-400">
+              <span>XP PROGRESS</span>
+              <span id="hud-xp-text">120 / 300</span>
+            </div>
+            <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+              <div class="h-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all duration-300" id="hud-xp-bar" style="width: 40%"></div>
+            </div>
+          </div>
+
+          <!-- Flame / Streaks -->
+          <div class="flex items-center gap-2 bg-slate-900/80 border border-rose-950/20 rounded-lg px-2.5 py-1.5 cursor-help" title="Daily Streak factor" id="streak-tooltip">
+            <span class="text-lg animate-pulse" id="hud-streak-icon">🔥</span>
+            <div>
+              <p class="text-[9px] text-slate-400 font-mono uppercase leading-none">Streak</p>
+              <p class="text-xs font-semibold text-rose-400" id="hud-streak">0 Days</p>
+            </div>
+          </div>
+
+          <!-- Coins -->
+          <div class="flex items-center gap-2 bg-slate-900/80 border border-amber-950/20 rounded-lg px-2.5 py-1.5">
+            <span class="text-base text-amber-400 inline-block" id="hud-coin-icon">🪙</span>
+            <div>
+              <p class="text-[9px] text-slate-400 font-mono uppercase leading-none">Gold Coins</p>
+              <p class="text-xs font-semibold text-amber-400 font-mono" id="hud-coins">150</p>
+            </div>
+          </div>
+
+
+        </div>
+
+        <!-- Google User / Guest Controller -->
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex text-right flex-col" id="user-info-section">
+            <p class="text-xs font-medium text-slate-200" id="user-name">Guest Adventurer</p>
+            <p class="text-[10px] text-slate-400 font-mono" id="user-email-subtitle">Not connected</p>
+          </div>
+          <button class="px-3 py-1.5 rounded-lg border border-violet-500/40 bg-violet-950/20 hover:bg-violet-900/30 text-xs text-violet-300 hover:text-white transition-all rpg-btn font-sans font-bold flex items-center justify-center glow-purple-sm" id="login-trigger-btn">
+            <span class="flex items-center gap-1.5">
+              🔑 Sign In / Register
+            </span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT GRID (Sidebar + Screen Output) -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row gap-6">
+      
+      <!-- Side Navigation / Control Panel -->
+      <aside class="lg:w-64 flex flex-col gap-4">
+        <!-- Navigation Panel -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible gap-2 scrollbar-none">
+          <p class="hidden lg:block text-[9px] font-mono tracking-widest text-slate-500 uppercase px-3 mb-2">Quest Navigation</p>
+          
+          <button class="nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn bg-violet-600/20 border border-violet-500/30 text-white" data-target="dashboard">
+            <span class="text-lg">🛡️</span>
+            <span>Adventure Guild</span>
+          </button>
+          
+          <button class="nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn text-slate-400 hover:text-slate-200 hover:bg-slate-850" data-target="dictionary">
+            <span class="text-lg">📖</span>
+            <span>Quest Book</span>
+          </button>
+          
+          <button class="nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn text-slate-400 hover:text-slate-200 hover:bg-slate-850" data-target="games">
+            <span class="text-lg">⚔️</span>
+            <span>Training Arena</span>
+          </button>
+          
+          <button class="nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn text-slate-400 hover:text-slate-200 hover:bg-slate-850" data-target="ai-citadel">
+            <span class="text-lg">🧙‍♂️</span>
+            <span>AI Citadel Tutor</span>
+          </button>
+          
+          <button class="nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn text-slate-400 hover:text-slate-200 hover:bg-slate-850" data-target="leaderboard">
+            <span class="text-lg">🏆</span>
+            <span>Hall of Fame</span>
+          </button>
+
+          <button class="nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn text-slate-400 hover:text-slate-200 hover:bg-slate-850" data-target="shop">
+            <span class="text-lg">🛍️</span>
+            <span>Lore Store</span>
+          </button>
+        </div>
+
+        <!-- Mini NPC Companion / Interactive Status -->
+        <div class="glass-panel rounded-2xl p-4 hidden lg:block border border-violet-500/10">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-full bg-violet-950 flex items-center justify-center text-xl shadow-inner border border-violet-500/30">🦉</div>
+            <div>
+              <p class="text-xs font-semibold text-violet-300">Companion Adler</p>
+              <p class="text-[10px] text-slate-400 font-mono">AI Companion Owl</p>
+            </div>
+          </div>
+          <div class="mt-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-300 leading-relaxed italic" id="companion-bubble">
+            "Willkommen, Adventurer! Click on the 'AI Citadel Tutor' tab or practicing arena to test your skills."
+          </div>
+          <button class="mt-2 text-[10px] text-violet-400 hover:text-violet-300 font-mono cursor-pointer flex items-center gap-1 self-end justify-end w-full" id="ask-companion-tip">
+            Generate micro tip →
+          </button>
+        </div>
+      </aside>
+
+      <!-- ACTIVE SCREEN INNER PORT -->
+      <section class="flex-1 flex flex-col min-w-0" id="main-port-container">
+        
+        <!-- ============================================== -->
+        <!-- VIEW: DASHBOARD (ADVENTURE GUILD) -->
+        <!-- ============================================== -->
+        <div class="view-screen flex flex-col gap-6" id="view-dashboard">
+          <!-- Welcome Hero Banner -->
+          <div class="glass-panel glow-purple rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 justify-between relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-violet-600/10 rounded-full blur-3xl"></div>
+            <div class="absolute -left-10 -top-10 w-44 h-44 bg-blue-600/10 rounded-full blur-3xl"></div>
+            
+            <div class="flex-1 text-center md:text-left">
+              <h2 class="text-2xl sm:text-3xl font-display font-bold mb-2">Welcome to your German Quest!</h2>
+              <p class="text-slate-300 text-sm max-w-xl leading-relaxed">
+                Unlock high-level German vocabulary by clearing dungeon quests, fighting word bosses, and practicing in real-time. Auto-saves locally to keep progress persistent on this browser!
+              </p>
+              <div class="mt-4 flex flex-wrap justify-center md:justify-start gap-3">
+                <button class="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-medium text-xs text-white shadow-md glow-purple rpg-btn" id="start-practices-hero">
+                  Enter Training Arena ⚔️
+                </button>
+
+              </div>
+            </div>
+
+            <!-- Dashboard Mascot -->
+            <div class="text-6xl p-5 bg-slate-900/90 rounded-2xl border border-violet-500/20 shadow-xl animate-float">🏰</div>
+          </div>
+
+          <!-- Grid Dashboard Columns -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Column 1: Daily Activity & Stats -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-violet-500/10">
+              <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
+                <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
+                  <span>📊</span> STATS CHRONICLE
+                </h3>
+                <span class="text-[10px] font-mono text-violet-400">Accurate Stats</span>
+              </div>
+              
+              <!-- Core analytical fields -->
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                  <p class="text-xl font-mono font-bold text-violet-400" id="stats-total-words">0</p>
+                  <p class="text-[10px] text-slate-400 font-sans tracking-wide">Total Words Learned</p>
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                  <p class="text-xl font-mono font-bold text-emerald-400" id="stats-accuracy">0%</p>
+                  <p class="text-[10px] text-slate-400 font-sans tracking-wide">Average Accuracy</p>
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                  <p class="text-xl font-mono font-bold text-amber-400" id="stats-practices-run">0</p>
+                  <p class="text-[10px] text-slate-400 font-sans tracking-wide">Quizzes Fought</p>
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                  <p class="text-xl font-mono font-bold text-blue-400" id="stats-favorites">0</p>
+                  <p class="text-[10px] text-slate-400 font-sans tracking-wide">Favorite Words</p>
+                </div>
+              </div>
+
+              <!-- Quick Activity graph skeleton -->
+              <div class="flex flex-col gap-2 mt-2">
+                <p class="text-[10px] font-mono text-slate-400 uppercase tracking-widest leading-none">Weekly Daily Activity</p>
+                <!-- SVG Chart Container -->
+                <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/80 flex flex-col justify-center items-center h-28" id="activity-chart-container">
+                  <!-- Render dynamically from JavaScript -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 2: Weak Words / Target enemies -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col gap-3 border border-red-500/10">
+              <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
+                <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
+                  <span>💀</span> INSIDER WEAK WORDS
+                </h3>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-red-950 text-red-400 font-mono">Needs Training</span>
+              </div>
+              <p class="text-xs text-slate-400">These words are haunting your spell book. Beat them in game modes to restore perfect learning levels!</p>
+              
+              <!-- Weak words listing -->
+              <div class="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px]" id="dashboard-weak-words-list">
+                <div class="text-center py-6 text-slate-500 text-xs">No weak words yet. Great job!</div>
+              </div>
+            </div>
+
+            <!-- Column 3: Smart AI Recommendation Sheet -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col gap-3 border border-blue-500/10">
+              <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
+                <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
+                  <span>🧙‍♂️</span> SMART RECOMMS
+                </h3>
+                <button class="text-[10px] font-mono text-blue-400 hover:text-blue-300" id="refresh-ai-recomm">Regen AI ✨</button>
+              </div>
+              <p class="text-xs text-slate-400">Adler's direct recommendation for your current experience questline:</p>
+
+              <!-- Dynamic Recommended Words -->
+              <div class="flex-1 flex flex-col gap-2.5" id="dashboard-recomm-container">
+                <!-- Javascript will load this dynamically -->
+                <div class="flex items-center justify-center py-8">
+                  <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-500"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Achievements Section -->
+          <div class="glass-panel rounded-2xl p-5 border border-amber-500/10">
+            <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2 pb-3 mb-4 border-b border-slate-800/80">
+              <span>🏆</span> ACHIEVEMENTS UNLOCKED
+            </h3>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="achievements-container">
+              <!-- Render dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW: QUEST BOOK (DICTIONARY) -->
+        <!-- ============================================== -->
+        <div class="view-screen hidden flex-col gap-6" id="view-dictionary">
+          <div class="glass-panel rounded-2xl p-5 flex flex-col gap-5">
+            
+            <!-- Controls and Stats bar -->
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <h2 class="text-xl font-display font-bold">Vocabulary Quest Book</h2>
+                <p class="text-slate-400 text-xs">Manage, translate, and review words instantly with your secure local vocabulary deck database.</p>
+              </div>
+
+              <!-- Top buttons: Sync & Create -->
+              <div class="flex flex-wrap items-center gap-3">
+                <button class="px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 text-xs font-semibold rpg-btn flex items-center gap-2" id="trigger-sync-sheet-btn">
+                  <span>💾</span> Save Progress
+                </button>
+                <button class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white glow-purple rpg-btn flex items-center gap-2" id="add-word-trigger">
+                  <span>➕</span> Add New Word
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter and Search Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <!-- Search bar -->
+              <div class="sm:col-span-6 relative">
+                <span class="absolute left-3.5 top-2.5 text-slate-400 text-sm">🔍</span>
+                <input type="text" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500" placeholder="Search words in German, English, or category..." id="vocab-search">
+              </div>
+
+              <!-- Category filter -->
+              <div class="sm:col-span-3">
+                <select class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-violet-500 focus:outline-none" id="vocab-filter-category">
+                  <option value="all">All Categories</option>
+                  <option value="Basics">Basics</option>
+                  <option value="Nouns">Nouns</option>
+                  <option value="Verbs">Verbs</option>
+                  <option value="Adjectives">Adjectives</option>
+                  <option value="Adventure">Adventure</option>
+                  <option value="Conversation">Conversation</option>
+                </select>
+              </div>
+
+              <!-- Favorites filter -->
+              <div class="sm:col-span-3">
+                <select class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-violet-500 focus:outline-none" id="vocab-filter-favor">
+                  <option value="all">All Words</option>
+                  <option value="favorites">⭐ Favorites Only</option>
+                  <option value="weak">💀 Trouble Words</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Vocabulary Cards List Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="vocabulary-grid">
+              <!-- Appended dynamically -->
+            </div>
+
+            <!-- No search returns fallback -->
+            <div class="hidden flex-col items-center justify-center py-20 text-center text-slate-500" id="empty-search-fallback">
+              <span class="text-4xl mb-3">🛰️</span>
+              <p class="font-medium text-sm">No vocabulary matches your scroll filter.</p>
+              <p class="text-xs text-slate-600 mt-1">Try broadening your search or click 'Add New Word' to forge one!</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW: TRAINING ARENA (GAMES & PRACTICES) -->
+        <!-- ============================================== -->
+        <div class="view-screen hidden flex-col gap-6" id="view-games">
+          
+          <!-- Outer Games Selector List -->
+          <div class="flex flex-col gap-6" id="games-selection-screen">
+            <div class="glass-panel rounded-2xl p-5 border border-violet-550/10">
+              <h2 class="text-xl font-display font-medium text-slate-200">The training Arena Modes</h2>
+              <p class="text-slate-400 text-xs mt-1">Choose your adventure quest to challenge your brain, accumulate gold, and level up!</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              
+              <!-- Game Card: Multiple Choice -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-violet-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="quiz">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-violet-950/60 rounded-xl border border-violet-500/25">⏳</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-violet-950 text-violet-400 rounded-full font-mono font-medium">Standard Quest</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Multiple Choice Quiz</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Choose the correct translation from 4 spell choices. Perfect for steady leveling!</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">10g / XP</b></span>
+                  <span class="text-violet-400 font-semibold font-mono">FIGHT →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Typing challenge -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-purple-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="typing">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-purple-950/60 rounded-xl border border-purple-500/25">✍️</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-purple-950 text-purple-400 rounded-full font-mono font-medium">Spelling Dojo</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Word Typing Duel</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Spell the precise German vocabulary translations. Sharpens grammar, accents, and accuracy.</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">15g / XP</b></span>
+                  <span class="text-purple-400 font-semibold font-mono">CHALLENGE →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Flashcards -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-blue-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="flashcards">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-blue-950/60 rounded-xl border border-blue-500/25">📇</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-blue-950 text-blue-400 rounded-full font-mono font-medium">Memory Sanctum</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Dynamic Flashcards</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Relax and study. View mnemonics, audio pronunciation, and self-report retention.</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">5g / XP</b></span>
+                  <span class="text-blue-400 font-semibold font-mono">MEMORIZE →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Memory Match -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-emerald-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="matching">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-emerald-950/60 rounded-xl border border-emerald-500/25">🃏</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded-full font-mono font-medium">Rune Match</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Tile Memory Matching</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Match German tiles to equivalent English tiles before the ticks run out!</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">15g / XP</b></span>
+                  <span class="text-emerald-400 font-semibold font-mono">MATCH →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Listening trial -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-pink-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="listening">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-pink-950/60 rounded-xl border border-pink-500/25">🎧</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-pink-950 text-pink-400 rounded-full font-mono font-medium">Audio Dojo</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Listening Challenge</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Listen to the spoken German words using audio synthesizers, then type or choose translation.</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">15g / XP</b></span>
+                  <span class="text-pink-400 font-semibold font-mono">LISTEN →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Speaking trial -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-amber-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="speaking">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-amber-950/60 rounded-xl border border-amber-500/25">🎙️</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-amber-950 text-amber-550 rounded-full font-mono font-medium">Voice Dojo</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Speaking Trial</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Speak the German words clearly into your microphone using browser AI speech recognizers!</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">20g / XP</b></span>
+                  <span class="text-amber-400 font-semibold font-mono">SPEAK →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: epic Boss Battle -->
+              <div class="glass-panel rounded-2xl p-5 glow-rose hover:border-rose-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 col-span-1 md:col-span-2 lg:col-span-3 rpg-btn" data-game="boss">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div class="flex items-center gap-4">
+                    <span class="text-4xl p-4 bg-rose-950/60 rounded-2xl border border-rose-550/30">👹</span>
+                    <div>
+                      <h3 class="font-display font-bold text-rose-400 text-lg flex items-center gap-2">
+                        BOSS DUEL: Vocabulary Overlord
+                      </h3>
+                      <p class="text-slate-300 text-xs mt-1 leading-relaxed max-w-xl">
+                        Vanquish majestic vocab trolls! Defeat him with correct translations of weak words. If you fail, he damages your hearts/health. Bring freeze/double potions from the Shop!
+                      </p>
+                    </div>
+                  </div>
+                  <span class="text-[10px] sm:self-center px-3 py-1 bg-rose-950 text-rose-300 rounded-full font-mono font-semibold uppercase tracking-wider">RAID - HIGH REWARD</span>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Requirements: <b class="text-rose-400">At least 4 words in handbook</b></span>
+                  <span>Grand Loot Payout: <b class="text-amber-400 font-mono">50g / 50 XP</b></span>
+                  <span class="text-rose-500 font-bold font-mono">ENTER BOSS NEST ⚔️</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Active Game Play Area Container (Hidden until selected) -->
+          <div class="glass-panel rounded-2xl p-6 hidden flex-col gap-6" id="game-playground">
+            
+            <!-- Game Top Header Bar -->
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4 h-12">
+              <div class="flex items-center gap-3">
+                <button class="px-3 py-1 bg-slate-900 border border-slate-700/60 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-all rpg-btn" id="quit-game-btn">
+                  ← Retreat
+                </button>
+                <h3 class="font-display font-medium text-slate-100 text-sm" id="game-active-title">Training Mode</h3>
+              </div>
+
+              <!-- Game Metrics (Score, progress steps) -->
+              <div class="flex items-center gap-4 font-mono text-xs">
+                <div>
+                  <span class="text-slate-400">PROGRESS:</span>
+                  <span class="text-violet-400 font-bold" id="game-hud-progress">0/10</span>
+                </div>
+                <div id="game-hud-scores-con" class="flex items-center gap-3">
+                  <span class="text-slate-400">RATING:</span>
+                  <span class="text-emerald-400 font-bold" id="game-hud-score">100%</span>
+                </div>
+                <!-- Health block for Boss Battler -->
+                <div id="game-hud-boss-con" class="hidden flex items-center gap-3">
+                  <span class="text-rose-400">❤ HEARTS:</span>
+                  <span id="game-hud-hearts" class="text-red-500 font-black">❤❤❤</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Main Interactive Screen Content Render Box -->
+            <div class="flex-1 min-h-[340px] flex flex-col justify-center" id="game-sub-viewport">
+              <!-- Instantiated on game selection -->
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW: AI CITADEL (TUTOR CHATBOT) -->
+        <!-- ============================================== -->
+        <div class="view-screen hidden flex-col gap-6 animate-fade" id="view-ai-citadel">
+          <div class="glass-panel rounded-2xl p-5 flex flex-col min-h-[500px]">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">🧙‍♂️</span>
+                <div>
+                  <h2 class="text-base font-display font-bold text-slate-100">Adler, AI Quest Master</h2>
+                  <p class="text-xs text-slate-400">Ask questions, request examples, or practice dialogue in real-time.</p>
+                </div>
+              </div>
+              <button class="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] font-mono text-rose-400 hover:text-rose-300" id="clear-ai-chat-btn">
+                Clear Memory 🧹
+              </button>
+            </div>
+
+            <!-- Chat message logs -->
+            <div class="flex-1 flex flex-col overflow-y-auto mb-4 p-3 bg-slate-950/60 rounded-xl border border-slate-900 max-h-[350px] min-h-[220px]" id="ai-chat-logs">
+              <!-- Messages generated in chat -->
+            </div>
+
+            <!-- Preset / Suggested prompts for learning -->
+            <div class="flex flex-wrap gap-2 mb-3">
+              <button class="chat-preset px-3 py-1.5 bg-slate-900/80 border border-slate-800 hover:border-violet-500/30 text-[11px] text-slate-300 rounded-lg text-left rpg-btn cursor-pointer">
+                How do we use German relative pronouns?
+              </button>
+              <button class="chat-preset px-3 py-1.5 bg-slate-900/80 border border-slate-800 hover:border-violet-500/30 text-[11px] text-slate-300 rounded-lg text-left rpg-btn cursor-pointer">
+                What's the difference between "du" and "sie"?
+              </button>
+              <button class="chat-preset px-3 py-1.5 bg-slate-900/80 border border-slate-800 hover:border-violet-500/30 text-[11px] text-slate-300 rounded-lg text-left rpg-btn cursor-pointer">
+                Provide a short, heroic roleplay dialogue in simple level.
+              </button>
+            </div>
+
+            <!-- Text Area Input box -->
+            <div class="flex items-center gap-2">
+              <input type="text" class="flex-1 bg-slate-900 border border-slate-700/60 rounded-xl px-4 py-3 text-xs focus:border-violet-500 focus:outline-none placeholder-slate-500" placeholder="Type a message. Example: 'Explain gender rules of der, die, das' or write in German..." id="ai-chat-input">
+              <button class="px-5 py-3 h-full rounded-xl bg-violet-600 hover:bg-violet-500 font-semibold text-xs text-white glow-purple rpg-btn" id="ai-chat-send-btn">
+                Cast spell ✨
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW: HALL OF FAME (LEADERBOARD) -->
+        <!-- ============================================== -->
+        <div class="view-screen hidden flex-col gap-6" id="view-leaderboard">
+          <div class="glass-panel rounded-2xl p-5 border border-amber-500/10">
+            <div class="border-b border-slate-800 pb-3 mb-6">
+              <h2 class="text-xl font-display font-medium text-slate-100 flex items-center gap-2">
+                <span>🏆</span> Hall of Fame: Quest Legends
+              </h2>
+              <p class="text-slate-400 text-xs mt-1">Check out the top learners in German Quest. Earn XP on quizzes and battles to scale higher!</p>
+            </div>
+
+            <!-- Top user comparison and leaderboard -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+              
+              <!-- Left: Ranking list -->
+              <div class="md:col-span-8 flex flex-col gap-3" id="leaderboard-list">
+                <!-- Rendered dynamically -->
+              </div>
+
+              <!-- Right: My Rank Card -->
+              <div class="md:col-span-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 text-center">
+                <p class="text-xs font-mono text-slate-500 uppercase tracking-widest leading-none">Your Rank</p>
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-2xl font-black text-slate-950 mx-auto shadow-md shadow-yellow-500/20" id="leaderboard-my-avatar-rank">
+                  #1
+                </div>
+                <div>
+                  <h4 class="font-display font-bold text-base text-slate-100" id="leaderboard-my-name">Guest Adventurer</h4>
+                  <p class="text-xs text-amber-400 font-semibold mt-0.5" id="leaderboard-my-level">Level 1 - Novice Recruit</p>
+                </div>
+                <div class="border-t border-slate-800 pt-3 flex justify-around text-center">
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-mono">TOTAL XP</p>
+                    <p class="text-sm font-bold text-violet-400 font-mono" id="leaderboard-my-xp">120xp</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-slate-500 font-mono">STATUS</p>
+                    <p class="text-sm font-bold text-emerald-400 leading-none mt-1">Conquering</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VIEW: LORE STORE (SHOP) -->
+        <!-- ============================================== -->
+        <div class="view-screen hidden flex-col gap-6" id="view-shop">
+          <div class="glass-panel rounded-2xl p-5 border border-amber-500/10">
+            <div class="border-b border-slate-800 pb-3 mb-6">
+              <h2 class="text-xl font-display font-medium text-slate-100 flex items-center gap-2">
+                <span>🛍️</span> Lore Store: Gold Traders
+              </h2>
+              <p class="text-slate-400 text-xs mt-1">Spend virtual gold coins earned in German lessons to load powerups, customize titles, or protect streaks!</p>
+            </div>
+
+            <!-- Items shelf -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="store-items-shelf">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- FLOATING FOOTER AND SETUP DETAILED POPUP MODALS -->
+    <footer class="text-center py-6 border-t border-slate-900/60 bg-[#07080b] mt-10">
+      <div class="max-w-7xl mx-auto px-4 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <p>© 2026 German Quest RPG. Safe, clean, and stored on your secure local browser database.</p>
+
+      </div>
+    </footer>
+  </div>
+
+    <!-- MODAL CONTAINER: ADD / EDIT WORD -->
+    <div class="fixed inset-0 bg-black/85 z-50 hidden flex-center justify-center items-center p-4 transition-all" id="word-modal">
+      <div class="glass-panel-heavy rounded-2xl max-w-lg w-full p-6 flex flex-col gap-4 animate-scale md:max-h-[85vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h3 class="text-base font-display font-bold" id="word-modal-title">Forge New Vocabulary Spell</h3>
+          <button class="text-slate-400 hover:text-slate-200 text-lg cursor-pointer" id="close-word-modal-btn">✕</button>
+        </div>
+
+        <form class="flex flex-col gap-3.5" id="word-form">
+          <input type="hidden" id="word-edit-index">
+          
+          <!-- German -->
+          <div>
+            <label class="block text-[11px] font-mono uppercase text-violet-400 mb-1">German Word *</label>
+            <input type="text" id="word-german" required class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-violet-500 focus:outline-none" placeholder="e.g. das Abenteuer (include gender article der/die/das if applicable)">
+          </div>
+
+          <!-- English -->
+          <div>
+            <label class="block text-[11px] font-mono uppercase text-violet-400 mb-1">English Translation *</label>
+            <input type="text" id="word-english" required class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-violet-500 focus:outline-none" placeholder="e.g. the adventure">
+          </div>
+
+          <!-- Category selection -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-mono uppercase text-violet-400 mb-1">Category</label>
+              <select id="word-category" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-violet-500 focus:outline-none">
+                <option value="Basics">Basics</option>
+                <option value="Nouns">Nouns</option>
+                <option value="Verbs">Verbs</option>
+                <option value="Adjectives">Adjectives</option>
+                <option value="Adventure">Adventure</option>
+                <option value="Conversation">Conversation</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-mono uppercase text-violet-400 mb-1">Difficulty</label>
+              <select id="word-difficulty" class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:border-violet-500 focus:outline-none">
+                <option value="Easy">🟢 Easy</option>
+                <option value="Medium">🟡 Medium</option>
+                <option value="Hard">🔴 Hard</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Local storage prompt status helper -->
+          <div class="p-3 bg-slate-900 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
+            <span>ℹ️</span>
+            <p>This item will instantly save locally and update your active RPG vocabulary deck upon confirmation.</p>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="flex justify-end gap-3 mt-2">
+            <button type="button" class="px-4 py-2 border border-slate-700 hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-300 rpg-btn" id="cancel-word-modal-btn">
+              Cancel
+            </button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white glow-purple rpg-btn">
+              Forge Word ✨
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- NEW AUTHENTICATION & LOGIN DECISION MODAL (Iframe Safe) -->
+    <div class="fixed inset-0 bg-black/90 z-50 hidden flex justify-center items-center p-4 transition-all" id="auth-modal">
+      <div class="glass-panel-heavy rounded-2xl max-w-md w-full p-6 flex flex-col gap-4 animate-scale max-h-[90vh] overflow-y-auto border-l-4 border-violet-500">
+        
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h3 class="text-sm font-display font-semibold text-violet-400 flex items-center gap-2 uppercase tracking-wide" id="auth-modal-title">
+            🔑 Account Login & Registration
+          </h3>
+          <button class="text-slate-400 hover:text-slate-200 text-lg cursor-pointer" id="close-auth-modal-btn">✕</button>
+        </div>
+
+        <!-- Auth Tabs Switcher -->
+        <div class="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800/60">
+          <button class="py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-center bg-violet-600/20 text-violet-300 border border-violet-500/25 transition-all" id="tab-auth-signup">
+            Create Account
+          </button>
+          <button class="py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-center text-slate-400 hover:text-slate-200 transition-all font-sans border border-transparent" id="tab-auth-signin">
+            Sign In / Log In
+          </button>
+        </div>
+
+        <!-- SIGN UP WINDOW -->
+        <div class="flex flex-col gap-4 text-xs" id="auth-signup-panel">
+          <!-- Hero Name Input -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase font-mono text-slate-400">Your Full/Profile Name</label>
+            <input type="text" class="w-full bg-slate-950 border border-slate-700/60 rounded-lg px-3 py-2 placeholder-slate-600 text-violet-300 focus:outline-none focus:border-violet-500 font-sans text-xs font-semibold" id="auth-simulator-name" placeholder="Enter name or pseudonym (e.g., Galahad)">
+          </div>
+
+          <!-- Email Input -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase font-mono text-slate-400">Email Address (Requires Real Format)</label>
+            <input type="email" class="w-full bg-slate-950 border border-slate-700/60 rounded-lg px-3 py-2 placeholder-slate-600 text-violet-300 focus:outline-none focus:border-violet-500 font-sans text-xs" id="auth-signup-email" placeholder="name@domain.com">
+          </div>
+
+          <!-- Password Input -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase font-mono text-slate-400">Password (Min. 6 Characters)</label>
+            <input type="password" class="w-full bg-slate-950 border border-slate-700/60 rounded-lg px-3 py-2 placeholder-slate-600 text-violet-300 focus:outline-none focus:border-violet-500 font-sans text-xs" id="auth-signup-password" placeholder="Create a secure password">
+          </div>
+
+          <!-- Select Character Class -->
+          <div class="flex flex-col gap-2">
+            <label class="text-[10px] uppercase font-mono text-slate-400">Select Character Class</label>
+            <div class="grid grid-cols-2 gap-2" id="class-select-grid">
+              <button type="button" class="p-3 rounded-xl border-2 border-violet-500 bg-violet-950/20 flex flex-col items-center text-center gap-1 cursor-pointer class-opt transition-all" data-avatar="🛡️" data-class="Cavalier">
+                <span class="text-2xl">🛡️</span>
+                <div>
+                  <h5 class="text-[11px] font-bold text-slate-200">Cavalier</h5>
+                  <p class="text-[9px] text-slate-400">Steady defense & focus</p>
+                </div>
+              </button>
+              <button type="button" class="p-3 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-violet-500/30 flex flex-col items-center text-center gap-1 cursor-pointer class-opt transition-all" data-avatar="🧙‍♂️" data-class="Archmage">
+                <span class="text-2xl">🧙‍♂️</span>
+                <div>
+                  <h5 class="text-[11px] font-bold text-slate-200">Archmage</h5>
+                  <p class="text-[9px] text-slate-400">Master of vocab runes</p>
+                </div>
+              </button>
+              <button type="button" class="p-3 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-violet-500/30 flex flex-col items-center text-center gap-1 cursor-pointer class-opt transition-all" data-avatar="🏹" data-class="Windranger">
+                <span class="text-2xl">🏹</span>
+                <div>
+                  <h5 class="text-[11px] font-bold text-slate-200">Windranger</h5>
+                  <p class="text-[9px] text-slate-400">High training precision</p>
+                </div>
+              </button>
+              <button type="button" class="p-3 rounded-xl border border-slate-800 bg-slate-900/40 hover:border-violet-500/30 flex flex-col items-center text-center gap-1 cursor-pointer class-opt transition-all" data-avatar="🐉" data-class="Shadowblade">
+                <span class="text-2xl">🐉</span>
+                <div>
+                  <h5 class="text-[11px] font-bold text-slate-200">Shadowblade</h5>
+                  <p class="text-[9px] text-slate-400">Swift & agile learning</p>
+                </div>
+              </button>
+            </div>
+            <!-- Hidden inputs tracking select class & avatar -->
+            <input type="hidden" id="auth-selected-avatar" value="🛡️" />
+            <input type="hidden" id="auth-selected-class" value="Cavalier" />
+          </div>
+
+          <button class="w-full py-2.5 bg-violet-600 hover:bg-violet-500 transition-all text-white font-semibold rounded-lg mt-1 shadow-md glow-purple text-xs cursor-pointer text-center flex items-center justify-center gap-1 rpg-btn" id="auth-simulator-connect-btn">
+            ➕ Create Free Account
+          </button>
+        </div>
+
+        <!-- NEW OTP PANEL FOR VERIFICATION -->
+        <div class="flex flex-col gap-4 text-xs hidden" id="auth-otp-panel">
+          <div class="text-center p-3 bg-violet-950/20 border border-violet-500/20 rounded-xl flex flex-col gap-1">
+            <span class="text-xl">🗝️</span>
+            <h4 class="font-bold text-violet-300">Identity Shield Active</h4>
+            <p class="text-[10px] text-slate-400">We sent a 6-digit verification code to prove this is a real address owned by you.</p>
+          </div>
+
+          <div class="flex flex-col gap-1.5 text-center">
+            <label class="text-[10px] uppercase font-mono text-slate-400 text-left">Enter 6-Digit Verification OTP</label>
+            <input type="text" maxlength="6" class="w-full text-center bg-slate-950 border border-slate-700/60 rounded-lg px-4 py-3 placeholder-slate-600 text-violet-300 focus:outline-none focus:border-violet-500 font-mono text-lg font-bold tracking-wider" id="auth-otp-code" placeholder="000000">
+          </div>
+
+          <!-- Sandbox Mode notice dynamically updated via JS -->
+          <div class="p-3 bg-emerald-950/30 border border-emerald-500/20 text-emerald-300 rounded-lg hidden text-[10px] text-center" id="auth-otp-sandbox-hint">
+            <strong>🧪 Sandbox Test Hint:</strong> Since your SMTP secrets are empty, enter verification code <span class="font-mono underline font-bold text-emerald-200" id="auth-sandbox-otp-value">000000</span> to test registration.
+          </div>
+
+          <button class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 transition-all text-white font-semibold rounded-lg mt-1 shadow-md glow-purple text-xs cursor-pointer text-center flex items-center justify-center gap-1.5 rpg-btn" id="auth-otp-verify-btn">
+            🛡️ Verify Code & Complete Sign Up
+          </button>
+
+          <button type="button" class="text-slate-400 hover:text-slate-200 text-[10px] text-center underline cursor-pointer" id="auth-otp-back-btn">
+            ← Enter different email or name
+          </button>
+        </div>
+
+        <!-- SIGN IN WINDOW -->
+        <div class="flex flex-col gap-4 text-xs hidden" id="auth-signin-panel">
+          <!-- Email Input -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase font-mono text-slate-400">Email Address</label>
+            <input type="email" class="w-full bg-slate-950 border border-slate-700/60 rounded-lg px-3 py-2 placeholder-slate-600 text-violet-300 focus:outline-none focus:border-violet-500 font-sans text-xs" id="auth-signin-email" placeholder="name@domain.com">
+          </div>
+
+          <!-- Password Input -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase font-mono text-slate-400">Account Password</label>
+            <input type="password" class="w-full bg-slate-950 border border-slate-700/60 rounded-lg px-3 py-2 placeholder-slate-600 text-violet-300 focus:outline-none focus:border-violet-500 font-sans text-xs" id="auth-signin-password" placeholder="Enter your secret password">
+          </div>
+
+          <button class="w-full py-2.5 bg-violet-600 hover:bg-violet-500 transition-all text-white font-semibold rounded-lg mt-2 shadow-md glow-purple text-xs cursor-pointer text-center flex items-center justify-center gap-1 rpg-btn" id="auth-signin-btn">
+            🔑 Sign In to Account
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+      </div>
+    </div>
+
+    <!-- MAIN APP SCRIPT ORCHESTRATION -->
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

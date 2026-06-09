@@ -1,0 +1,1627 @@
+import "./index.css";
+import { Dictionary, Word } from "./dictionary";
+import { Analytics } from "./analytics";
+import { Games } from "./games";
+
+// Global user profile state key
+const PROFILE_KEY = "gq_user_profile";
+
+interface UserProfile {
+  level: number;
+  xp: number;
+  xpNeeded: number;
+  streak: number;
+  coins: number;
+  favoriteCategories: string[];
+  weakWords: string[];
+  achievements: string[];
+  name: string;
+  email: string;
+  avatar: string;
+  lastPracticeDate: string; // YYYY-MM-DD
+  customTag?: string;       // Custom shop titles
+}
+
+// Default layout profile
+const DEFAULT_PROFILE: UserProfile = {
+  level: 1,
+  xp: 120,
+  xpNeeded: 300,
+  streak: 0,
+  coins: 150,
+  favoriteCategories: ["Basics", "Adventure"],
+  weakWords: [],
+  achievements: ["recruit"],
+  name: "Guest Adventurer",
+  email: "notconnect@domain.com",
+  avatar: "🛡️",
+  lastPracticeDate: ""
+};
+
+// Store custom items lists
+interface StoreItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  icon: string;
+  category: "powerup" | "customization" | "shield";
+}
+
+const STORE_ITEMS: StoreItem[] = [
+  { id: "streak_freeze", name: "Streak Freeze Elixir", description: "Protects your active streak if you fail to train daily.", price: 60, icon: "❄️", category: "shield" },
+  { id: "double_xp", name: "Double XP Quest Scroll", description: "Fills code lessons with triple motivation! +10 XP booster.", price: 100, icon: "📜", category: "powerup" },
+  { id: "health_potion", name: "Rune Potion of Healing", description: "Grants 1 buffer heart in your epic vocab Boss battles.", price: 40, icon: "🧪", category: "powerup" },
+  { id: "title_archmage", name: "Title: Word Archmage", description: "Premium title badge drawn alongside your profile rank.", price: 200, icon: "🌌", category: "customization" },
+  { id: "title_hero", name: "Title: Teutonic Champion", description: "Unlocks high-level respect badge in Hall of Fame rankings.", price: 150, icon: "🏷️", category: "customization" }
+];
+
+export class AppOrchestrator {
+  private dictionary = new Dictionary();
+  private analytics = new Analytics();
+  private games!: Games;
+  private profile!: UserProfile;
+  
+  // Chat memory
+  private chatMessages: { role: "user" | "assistant"; content: string }[] = [];
+
+  constructor() {
+    this.initProfile();
+    this.initModules();
+    this.bindEvents();
+    this.bindLandingEvents();
+    this.initLandingInteractiveDemo();
+    this.renderAllViews();
+    this.initializeGoogleLogin();
+    
+    // Sync on boot up if auth is present
+    const isGuest = this.profile.email && this.profile.email !== "notconnect@domain.com";
+    const hasGoogle = !!localStorage.getItem("gq_google_access_token");
+    if (hasGoogle || this.dictionary.getAppsScriptUrl()) {
+      this.performManualSync();
+    }
+    
+    // Automatically retrieve AI recommendations on startup
+    if (isGuest || hasGoogle) {
+      this.fetchSmartAIRecommendations();
+    }
+  }
+
+  private initProfile() {
+    const cached = localStorage.getItem(PROFILE_KEY);
+    if (cached) {
+      try {
+        this.profile = JSON.parse(cached);
+        // Verify streak on loading
+        this.validateDailyStreak();
+      } catch (e) {
+        this.profile = { ...DEFAULT_PROFILE };
+      }
+    } else {
+      this.profile = { ...DEFAULT_PROFILE };
+      this.saveProfile();
+    }
+  }
+
+  private initModules() {
+    // Instantiate games controller
+    this.games = new Games({
+      dictionary: this.dictionary,
+      onFinish: (xpEarned, coinsEarned, accuracy, gameMode) => {
+        this.rewardExperience(xpEarned, coinsEarned);
+        this.analytics.recordSession(accuracy, 10, gameMode);
+        
+        // Return to standard dashboard
+        this.switchView("dashboard");
+        this.renderAllViews();
+        this.fetchSmartAIRecommendations(); // Refresh recommendation based on possible weak words changes
+      }
+    });
+
+    // Seed preset tutor message
+    this.chatMessages = [
+      { role: "assistant", content: "Grüezi! I am Adler, your tutor owl. Tap any preset topic below, ask a complex question, or practice talking German with me! Type your message and click 'Cast Spell'." }
+    ];
+  }
+
+  private saveProfile() {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(this.profile));
+  }
+
+  // Daily Streak Management logic
+  private validateDailyStreak() {
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (!this.profile.lastPracticeDate) return;
+
+    const lastDate = new Date(this.profile.lastPracticeDate);
+    const todayDate = new Date(todayStr);
+    const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 1) {
+      // Streak broken unless they have a Streak Freeze
+      const freezeIndex = this.profile.achievements.indexOf("streak_freeze_active");
+      if (freezeIndex !== -1) {
+        // Use freeze
+        this.profile.achievements.splice(freezeIndex, 1);
+        this.displayBannerNotification("❄️ Streak Freeze Elixir Saved Your Active Streak!");
+      } else {
+        this.profile.streak = 0;
+      }
+      this.saveProfile();
+    }
+  }
+
+  // Award rewards & check levels
+  private rewardExperience(xpGain: number, coinsGain: number) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    
+    // Day tracker streak triggers
+    if (this.profile.lastPracticeDate !== todayStr) {
+      this.profile.streak += 1;
+      this.profile.lastPracticeDate = todayStr;
+      
+      // Streak achievements checks
+      if (this.profile.streak >= 3 && !this.profile.achievements.includes("streak_3")) {
+        this.profile.achievements.push("streak_3");
+        this.profile.coins += 50;
+        this.displayBannerNotification("🏆 ACHIEVEMENT UNLOCKED: 3 Day Fire Streak!");
+      }
+    }
+
+    this.profile.xp += xpGain;
+    this.profile.coins += coinsGain;
+
+    // Check level progression up
+    if (this.profile.xp >= this.profile.xpNeeded) {
+      this.profile.level += 1;
+      this.profile.xp -= this.profile.xpNeeded;
+      this.profile.xpNeeded = Math.round(this.profile.xpNeeded * 1.5);
+      
+      this.profile.coins += 100; // Grand reward
+      
+      // Levels achievements checks
+      if (this.profile.level >= 3 && !this.profile.achievements.includes("level_3")) {
+        this.profile.achievements.push("level_3");
+        this.displayBannerNotification("🏆 ACHIEVEMENT UNLOCKED: Teutonic Master (Level 3!)");
+      }
+      
+      this.displayBannerNotification(`🎉 CONGRATULATIONS! You advanced to Level ${this.profile.level} - ${this.getLevelTitle(this.profile.level)}!`, "emerald");
+    }
+
+    // Update vocabulary targets
+    this.profile.weakWords = this.dictionary.getWeakWords().map(w => w.german);
+
+    this.saveProfile();
+    this.renderHUD();
+    this.performManualSync();
+  }
+
+  private getLevelTitle(lvl: number): string {
+    if (lvl <= 1) return "Novice Recruit";
+    if (lvl === 2) return "Word Gladiator";
+    if (lvl === 3) return "Rune Tracker";
+    if (lvl <= 5) return "Heroic Fluent";
+    return "German Quest Archmage";
+  }
+
+  // Renders global top HUD labels
+  private renderHUD() {
+    const elLevel = document.getElementById("hud-level");
+    const elTitle = document.getElementById("hud-rank-title");
+    const elXpText = document.getElementById("hud-xp-text");
+    const elXpBar = document.getElementById("hud-xp-bar");
+    const elStreak = document.getElementById("hud-streak");
+    const elCoins = document.getElementById("hud-coins");
+    const elSyncLabel = document.getElementById("sync-label");
+    const elSyncDot = document.getElementById("sync-status");
+
+    // Profile details
+    const elUserName = document.getElementById("user-name");
+    const elUserEmail = document.getElementById("user-email-subtitle");
+
+    if (elLevel) elLevel.innerText = `${this.profile.level}`;
+    if (elTitle) elTitle.innerText = `${this.profile.customTag ? `[${this.profile.customTag}] ` : ""}${this.getLevelTitle(this.profile.level)}`;
+    if (elXpText) elXpText.innerText = `${this.profile.xp} / ${this.profile.xpNeeded} XP`;
+    if (elXpBar) {
+      const pct = Math.min(100, Math.round((this.profile.xp / this.profile.xpNeeded) * 100));
+      elXpBar.style.width = `${pct}%`;
+    }
+    if (elStreak) elStreak.innerText = `${this.profile.streak} Day${this.profile.streak === 1 ? "" : "s"}`;
+    if (elCoins) elCoins.innerText = `${this.profile.coins}`;
+
+    // Update connection labels
+    const accessToken = localStorage.getItem("gq_google_access_token");
+    const scriptUrl = this.dictionary.getAppsScriptUrl();
+    if (elSyncLabel && elSyncDot) {
+      if (accessToken) {
+        elSyncLabel.innerText = "Google Cloud Active";
+        elSyncLabel.className = "text-emerald-400 font-bold";
+        elSyncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 status-dot-pulse";
+      } else if (scriptUrl) {
+        elSyncLabel.innerText = "Synced Sheets";
+        elSyncLabel.className = "text-emerald-400 font-bold";
+        elSyncDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 status-dot-pulse";
+      } else {
+        elSyncLabel.innerText = "Local Offline";
+        elSyncLabel.className = "text-amber-400 font-bold";
+        elSyncDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 status-dot-pulse";
+      }
+    }
+
+    // Dynamic rendering of Connect button labels
+    const loginBtn = document.getElementById("login-trigger-btn");
+    if (loginBtn) {
+      if (accessToken) {
+        loginBtn.innerHTML = "Logout";
+        loginBtn.className = "px-3 py-1.5 rounded-lg border border-rose-500/30 hover:bg-rose-950/20 text-xs text-rose-400 hover:text-rose-300 transition-all rpg-btn font-mono font-bold";
+      } else if (this.profile.email && this.profile.email !== "notconnect@domain.com") {
+        loginBtn.innerHTML = "Logout";
+        loginBtn.className = "px-3 py-1.5 rounded-lg border border-rose-500/35 hover:bg-rose-950/20 text-xs text-rose-400 hover:text-rose-300 transition-all rpg-btn font-mono font-bold";
+      } else {
+        loginBtn.innerHTML = `
+          <span class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-6.887 4.114-4.636 0-8.358-3.722-8.358-8.358s3.722-8.358 8.358-8.358c2.15 0 4.152.822 5.673 2.34l3.056-3.056C18.232 1.346 15.356 0 12.24 0 5.48 0 0 5.48 0 12.24s5.48 12.24 12.24 12.24c6.702 0 12.24-5.388 12.24-12.24 0-.776-.08-1.536-.208-2.28H12.24z"/>
+            </svg>
+            Sign in with Google
+          </span>
+        `;
+        loginBtn.className = "px-3 py-1.5 rounded-lg border border-violet-500/40 bg-violet-950/20 hover:bg-violet-900/30 text-xs text-violet-300 hover:text-white transition-all rpg-btn font-sans font-bold flex items-center justify-center glow-purple-sm";
+      }
+    }
+
+    if (elUserName) elUserName.innerText = this.profile.name;
+    if (elUserEmail) {
+      elUserEmail.innerText = this.profile.email === "notconnect@domain.com" ? "Local Database active" : this.profile.email;
+    }
+  }
+
+  // Switch Sub-Tab views
+  public switchView(tabTarget: string) {
+    // Toggle active tab buttons colors
+    const tabs = document.querySelectorAll(".nav-tab");
+    tabs.forEach(tab => {
+      const isMatch = tab.getAttribute("data-target") === tabTarget;
+      if (isMatch) {
+        tab.className = "nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn bg-violet-600/20 border border-violet-500/30 text-white";
+      } else {
+        tab.className = "nav-tab flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-display font-medium text-sm rpg-btn text-slate-400 hover:text-slate-200 hover:bg-slate-850";
+      }
+    });
+
+    // Toggle view layout divs
+    const screens = document.querySelectorAll(".view-screen");
+    screens.forEach(screen => {
+      if (screen.id === `view-${tabTarget}`) {
+        screen.classList.remove("hidden");
+        screen.classList.add("flex");
+      } else {
+        screen.classList.remove("flex");
+        screen.classList.add("hidden");
+      }
+    });
+
+    // Reset games selections block on moving to practices
+    if (tabTarget === "games") {
+      const selectArena = document.getElementById("games-selection-screen");
+      const activePlayground = document.getElementById("game-playground");
+      if (selectArena) selectArena.classList.remove("hidden");
+      if (activePlayground) activePlayground.classList.add("hidden");
+    }
+  }
+
+  // Draw sections
+  private renderAllViews() {
+    this.renderLandingAndAppToggle();
+    this.renderHUD();
+    this.renderDashboardStats();
+    this.renderDashboardAchievements();
+    this.renderDictionaryGrid();
+    this.renderShopShelf();
+    this.renderLeaderboardList();
+    this.renderAIChatMemory();
+  }
+
+  // Renders stats card
+  private renderDashboardStats() {
+    const totWords = document.getElementById("stats-total-words");
+    const avgAccuracy = document.getElementById("stats-accuracy");
+    const practsRun = document.getElementById("stats-practices-run");
+    const totFavs = document.getElementById("stats-favorites");
+
+    const wordsList = this.dictionary.getWords();
+    const weakList = this.dictionary.getWeakWords();
+
+    if (totWords) totWords.innerText = `${wordsList.length}`;
+    if (avgAccuracy) avgAccuracy.innerText = `${this.analytics.getAverageAccuracy()}%`;
+    if (practsRun) practsRun.innerText = `${this.analytics.getHistory().length}`;
+    if (totFavs) totFavs.innerText = `${wordsList.filter(w => w.isFavorite).length}`;
+
+    // Render Weekly Activity SVG Chart
+    this.analytics.renderSVGChart("activity-chart-container");
+
+    // Render trouble list
+    const troubleBox = document.getElementById("dashboard-weak-words-list");
+    if (troubleBox) {
+      troubleBox.innerHTML = "";
+      if (weakList.length === 0) {
+        troubleBox.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            ✨ Perfect standing! No trouble words. Learn more vocabulary inside Quest Book!
+          </div>
+        `;
+      } else {
+        weakList.slice(0, 4).forEach(word => {
+          const row = document.createElement("div");
+          row.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono";
+          
+          row.innerHTML = `
+            <div>
+              <span class="text-rose-400 font-bold block">${word.german}</span>
+              <span class="text-[10px] text-slate-400 block">${word.english}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[9px] text-slate-505 block uppercase">Accuracy</span>
+              <span class="text-[10px] text-rose-400 font-bold font-mono">-${word.errorCount} Errors</span>
+            </div>
+          `;
+          troubleBox.appendChild(row);
+        });
+      }
+    }
+  }
+
+  // Achievements section renderer
+  private renderDashboardAchievements() {
+    const box = document.getElementById("achievements-container");
+    if (!box) return;
+
+    // Static checklist
+    const achievementsList = [
+      { id: "recruit", title: "Recruit Forge", desc: "Forge your default handbook", icon: "🛡️" },
+      { id: "level_3", title: "Gladiator Master", desc: "Unlock level 3 questlines", icon: "⚔️" },
+      { id: "streak_3", title: "Ethereal Flame", desc: "Maintain a 3-day daily streak", icon: "🔥" },
+      { id: "conqueror", title: "Taiming Overlord", desc: "Vanquished vocabulary boss", icon: "👹" }
+    ];
+
+    box.innerHTML = "";
+    achievementsList.forEach(ach => {
+      const isUnlocked = this.profile.achievements.includes(ach.id) || (ach.id === "recruit" && this.dictionary.getWords().length > 0);
+      
+      const card = document.createElement("div");
+      card.className = `p-3 rounded-xl flex items-center gap-3 border ${
+        isUnlocked 
+          ? "bg-amber-950/15 border-amber-500/30 text-amber-300 shadow-inner" 
+          : "bg-slate-900/60 border-slate-800/80 text-slate-500 opacity-60"
+      }`;
+
+      card.innerHTML = `
+        <span class="text-2xl">${ach.icon}</span>
+        <div class="text-left">
+          <h4 class="font-display font-bold text-xs leading-tight">${ach.title}</h4>
+          <p class="text-[9px] text-slate-400 font-sans leading-none mt-0.5">${isUnlocked ? ach.desc : "Locked Quest"}</p>
+        </div>
+      `;
+      box.appendChild(card);
+    });
+  }
+
+  // Smart AI Recommendations generator
+  private async fetchSmartAIRecommendations() {
+    const isGuest = this.profile.email && this.profile.email !== "notconnect@domain.com";
+    const hasGoogle = !!localStorage.getItem("gq_google_access_token");
+    if (!(isGuest || hasGoogle)) return;
+
+    const recommContainer = document.getElementById("dashboard-recomm-container");
+    if (!recommContainer) return;
+
+    try {
+      // API payload POST
+      const response = await fetch("/api/ai/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          level: this.profile.level,
+          weakWords: this.profile.weakWords.slice(0, 3),
+          favoriteCategories: this.profile.favoriteCategories
+        })
+      });
+
+      const data = await response.json();
+      const list = data.recommendations || [];
+
+      recommContainer.innerHTML = "";
+      if (list.length === 0) {
+        recommContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No suggestions available.</p>`;
+        return;
+      }
+
+      list.forEach((w: any) => {
+        const item = document.createElement("div");
+        item.className = "p-2.5 rounded-xl bg-slate-900/90 border border-blue-900/20 hover:border-blue-500/30 transition-colors text-left font-mono relative cursor-help flex flex-col justify-center";
+        item.title = w.lore || "New word recommended by AI owl";
+
+        item.innerHTML = `
+          <div class="flex justify-between items-center mb-0.5 leading-none">
+            <span class="text-xs font-semibold text-blue-400 block">${w.word}</span>
+            <span class="text-[8px] px-1.5 py-0.5 bg-blue-950 text-blue-300 rounded uppercase font-bold tracking-wide">${w.difficulty}</span>
+          </div>
+          <div class="flex justify-between items-center leading-none">
+            <span class="text-[10px] text-slate-400 block">${w.meaning}</span>
+            <span class="text-[9px] text-amber-500 font-bold">+${w.xpAward || 30}xp</span>
+          </div>
+          <div class="text-[9px] text-slate-500 italic mt-1 font-sans border-t border-slate-800/60 pt-1 leading-tight">
+             🧙‍♂️ Lore: "${w.lore || 'High reward target.'}"
+          </div>
+        `;
+        recommContainer.appendChild(item);
+      });
+    } catch (e) {
+      console.error("AI Recommendation failed:", e);
+      if (recommContainer) {
+        recommContainer.innerHTML = `<span class="text-[11px] text-rose-400 text-center">Failed to load AI recommendations. Check endpoint.</span>`;
+      }
+    }
+  }
+
+  // Core Word Card drawers
+  private renderDictionaryGrid() {
+    const listGrid = document.getElementById("vocabulary-grid");
+    if (!listGrid) return;
+
+    listGrid.innerHTML = "";
+    
+    // Read search inputs
+    const filterSearchVal = (document.getElementById("vocab-search") as HTMLInputElement)?.value.toLowerCase() || "";
+    const filterCatVal = (document.getElementById("vocab-filter-category") as HTMLSelectElement)?.value || "all";
+    const filterFavorVal = (document.getElementById("vocab-filter-favor") as HTMLSelectElement)?.value || "all";
+
+    const allWords = this.dictionary.getWords();
+    const filtered = allWords.filter(w => {
+      // Text search match
+      const searchMatch = w.german.toLowerCase().includes(filterSearchVal) || 
+                          w.english.toLowerCase().includes(filterSearchVal) || 
+                          w.category.toLowerCase().includes(filterSearchVal);
+      
+      // Category match
+      const catMatch = filterCatVal === "all" || w.category === filterCatVal;
+
+      // Dropdown status match
+      let statusMatch = true;
+      if (filterFavorVal === "favorites") {
+        statusMatch = w.isFavorite;
+      } else if (filterFavorVal === "weak") {
+        statusMatch = (w.errorCount || 0) > 0;
+      }
+
+      return searchMatch && catMatch && statusMatch;
+    });
+
+    const empty = document.getElementById("empty-search-fallback");
+    if (filtered.length === 0) {
+      if (empty) empty.classList.remove("hidden");
+      return;
+    } else {
+      if (empty) empty.classList.add("hidden");
+    }
+
+    filtered.forEach((word, index) => {
+      const card = document.createElement("div");
+      card.className = "glass-panel p-4 rounded-2xl flex flex-col justify-between border border-slate-850 hover:border-violet-500/20 transition-all hover:scale-[1.01]";
+      
+      const accuracyStr = (word.accuracyCount || 0) + (word.errorCount || 0) > 0
+        ? `${Math.round((word.accuracyCount / (word.accuracyCount + word.errorCount)) * 100)}%`
+        : "Not trained";
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <span class="text-[9px] px-2 py-0.5 rounded-full font-mono bg-slate-900 border border-slate-800 text-slate-400 font-bold uppercase">${word.category}</span>
+          <div class="flex gap-1">
+            <button class="text-xs hover:scale-115 toggle-fav-btn cursor-pointer" data-index="${index}" title="Favorite toggle">
+              ${word.isFavorite ? "⭐" : "☆"}
+            </button>
+            <button class="text-xs text-rose-400 hover:text-rose-300 hover:scale-115 delete-word-btn cursor-pointer" data-index="${index}" title="Vaporize item">
+              🗑️
+            </button>
+          </div>
+        </div>
+
+        <div class="text-left my-2.5">
+          <h4 class="text-lg font-display font-bold text-violet-300 leading-tight">${word.german}</h4>
+          <p class="text-xs text-slate-400 mt-1 capitalize font-medium">${word.english}</p>
+        </div>
+
+        <div class="border-t border-slate-800/80 mt-1.5 pt-2 flex justify-between items-center text-[9px] font-mono leading-none text-slate-500">
+          <span class="flex items-center gap-1">
+            <span>Accuracy:</span>
+            <b class="${accuracyStr.startsWith("1") || accuracyStr.startsWith("8") || accuracyStr.startsWith("9") ? 'text-emerald-400' : 'text-rose-400'}">${accuracyStr}</b>
+          </span>
+          <span class="px-1.5 py-0.5 rounded capitalize bg-slate-950 font-bold" style="color: ${word.difficulty === "Easy" ? "#10b981" : word.difficulty === "Medium" ? "#f59e0b" : "#ef4444"}">
+            ${word.difficulty}
+          </span>
+        </div>
+      `;
+
+      listGrid.appendChild(card);
+    });
+
+    // Reattach word card triggers
+    listGrid.querySelectorAll(".toggle-fav-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const rawIdx = btn.getAttribute("data-index") || "0";
+        this.dictionary.toggleFavorite(allWords.indexOf(filtered[parseInt(rawIdx)]));
+        this.renderAllViews();
+      });
+    });
+
+    listGrid.querySelectorAll(".delete-word-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const rawIdx = btn.getAttribute("data-index") || "0";
+        const realIndex = allWords.indexOf(filtered[parseInt(rawIdx)]);
+        if (confirm(`Are you sure you want to vaporize "${allWords[realIndex]?.german}" from the Quest Book?`)) {
+          this.dictionary.deleteWord(realIndex);
+          this.renderAllViews();
+        }
+      });
+    });
+  }
+
+  // Lore Shop drawer
+  private renderShopShelf() {
+    const shelf = document.getElementById("store-items-shelf");
+    if (!shelf) return;
+
+    shelf.innerHTML = "";
+    STORE_ITEMS.forEach(item => {
+      const alreadyOwned = this.profile.achievements.includes(`owned_${item.id}`);
+      
+      const card = document.createElement("div");
+      card.className = "glass-panel rounded-2xl p-4 flex flex-col justify-between border border-slate-850 hover:border-amber-500/20 hover:-translate-y-0.5 transition-all";
+
+      card.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-3xl p-2.5 bg-slate-900 border border-slate-800 rounded-xl">${item.icon}</span>
+          <div class="text-left">
+            <h4 class="font-display font-medium text-slate-200 text-sm leading-tight">${item.name}</h4>
+            <p class="text-[9px] text-amber-500 uppercase tracking-widest font-mono mt-0.5 leading-none">Trader's Choice</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-400 text-left my-3 flex-1 leading-relaxed">${item.description}</p>
+
+        <div class="flex items-center justify-between border-t border-slate-850 pt-2.5 mt-2">
+          <span class="text-xs text-slate-400 flex items-center font-mono font-bold leading-none">
+            <b class="text-amber-400 text-sm mr-1">🪙 ${item.price}</b> gold
+          </span>
+          <button class="buy-item-btn px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase font-mono ${
+            alreadyOwned 
+              ? 'bg-slate-950 border border-slate-800 text-slate-500 hover:cursor-default' 
+              : 'bg-amber-550 hover:bg-amber-500 text-slate-950 cursor-pointer'
+          }" data-id="${item.id}" ${alreadyOwned ? 'disabled' : ''}>
+            ${alreadyOwned ? 'Purchased' : 'Forge Buy'}
+          </button>
+        </div>
+      `;
+
+      shelf.appendChild(card);
+    });
+
+    // Buy events
+    shelf.querySelectorAll(".buy-item-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const itemId = btn.getAttribute("data-id") || "";
+        this.executeStorePurchase(itemId);
+      });
+    });
+  }
+
+  private executeStorePurchase(itemId: string) {
+    const shopItem = STORE_ITEMS.find(s => s.id === itemId);
+    if (!shopItem) return;
+
+    if (this.profile.coins < shopItem.price) {
+      alert("❌ Insolvency! You don't possess enough virtual gold. Clears practices to reap gold rewards first!");
+      return;
+    }
+
+    // Deduct coins
+    this.profile.coins -= shopItem.price;
+
+    // Apply item effects
+    if (shopItem.id === "streak_freeze") {
+      this.profile.achievements.push("streak_freeze_active");
+      this.displayBannerNotification(`❄️ Purchased Streak Freeze potion. Your active fire streak is guarded!`, "blue");
+    } else if (shopItem.id === "double_xp") {
+      this.rewardExperience(50, 0); // Fictional immediate XP
+      this.displayBannerNotification(`📜 Fused XP Scroll: Gained +50 immediate experience points!`, "purple");
+    } else if (shopItem.id === "health_potion") {
+      this.profile.achievements.push("extra_boss_heart");
+      this.displayBannerNotification(`🧪 Healing potion stored! Safeguards you for next overlord battles.`, "blue");
+    } else {
+      // Titles customization
+      this.profile.customTag = shopItem.id === "title_archmage" ? "Archmage" : "Teutonic Hero";
+      this.profile.achievements.push(`owned_${itemId}`);
+      this.displayBannerNotification(`🌌 Unlocked Title Customization: [${this.profile.customTag}] unlocked!`, "emerald");
+    }
+
+    this.saveProfile();
+    this.renderAllViews();
+  }
+
+  // Hall of Fame Leaderboard drawers
+  private renderLeaderboardList() {
+    const list = document.getElementById("leaderboard-list");
+    if (!list) return;
+
+    // Standard simulated players to compare against
+    const leaderboardPlayers = [
+      { name: "Siegfried_Word", level: 5, xp: 1450, tag: "Spell Lord", avatar: "🧙‍♂️" },
+      { name: "Brunhilde_Learn", level: 4, xp: 950, tag: "Teutonic Hero", avatar: '⚔️' },
+      { name: "Hans_Quest", level: 3, xp: 620, tag: "Rune Tracker", avatar: "🛡️" },
+      { name: "Adler_Owl_Fan", level: 2, xp: 350, tag: "", avatar: "🦉" }
+    ];
+
+    // Insert user into records dynamically
+    const myEntry = {
+      name: this.profile.name,
+      level: this.profile.level,
+      xp: (this.profile.level - 1) * 300 + this.profile.xp, // Relative progression total
+      tag: this.profile.customTag || "",
+      avatar: "🏅"
+    };
+
+    const combined = [...leaderboardPlayers, myEntry].sort((a, b) => b.xp - a.xp);
+
+    list.innerHTML = "";
+    combined.forEach((player, i) => {
+      const isMe = player.name === this.profile.name;
+      const row = document.createElement("div");
+      row.className = `p-3 sm:p-4 rounded-xl flex items-center justify-between border ${
+        isMe 
+          ? 'bg-violet-950/15 border-violet-500/40 text-violet-300 glow-purple' 
+          : 'bg-slate-900 border-slate-850/80 text-slate-350'
+      }`;
+
+      row.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-bold font-mono text-slate-500 w-5 text-center">${i + 1}</span>
+          <span class="text-2xl">${player.avatar}</span>
+          <div class="text-left font-mono text-xs">
+            <span class="font-bold text-slate-100 ${isMe ? 'neon-text-purple' : ''}">${player.name}</span>
+            ${player.tag ? `<span class="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-slate-950 font-bold border border-slate-800 text-amber-550 uppercase">${player.tag}</span>` : ""}
+          </div>
+        </div>
+
+        <div class="text-right font-mono text-xs">
+          <span class="text-[10px] text-slate-500">LEVEL ${player.level}</span>
+          <span class="text-xs font-semibold text-slate-300 ml-4">${player.xp} XP</span>
+        </div>
+      `;
+
+      list.appendChild(row);
+    });
+
+    // Update rank card details
+    const myRankIdx = combined.findIndex(c => c.name === this.profile.name);
+    const hudRankBadge = document.getElementById("leaderboard-my-avatar-rank");
+    const hudRankName = document.getElementById("leaderboard-my-name");
+    const hudRankLevel = document.getElementById("leaderboard-my-level");
+    const hudRankXp = document.getElementById("leaderboard-my-xp");
+
+    if (hudRankBadge) hudRankBadge.innerText = `#${myRankIdx + 1}`;
+    if (hudRankName) hudRankName.innerText = this.profile.name;
+    if (hudRankLevel) hudRankLevel.innerText = `${this.getLevelTitle(this.profile.level)} (Lvl ${this.profile.level})`;
+    if (hudRankXp) hudRankXp.innerText = `${myEntry.xp} Total XP`;
+  }
+
+  // Renders AI Chat logs memory
+  private renderAIChatMemory() {
+    const logBox = document.getElementById("ai-chat-logs");
+    if (!logBox) return;
+
+    logBox.innerHTML = "";
+    this.chatMessages.forEach(msg => {
+      const bubble = document.createElement("div");
+      
+      if (msg.role === "assistant") {
+        bubble.className = "flex items-start gap-2.5 max-w-[85%] self-start text-xs p-3 rounded-xl bg-slate-900 border border-slate-850/60 text-slate-300 leading-relaxed mb-3";
+        bubble.innerHTML = `
+          <span class="text-sm self-start">🦉</span>
+          <div>
+            <span class="text-[10px] font-mono font-bold text-violet-400 block mb-1">Companion Adler (Tutor)</span>
+            <p>${msg.content}</p>
+          </div>
+        `;
+      } else {
+        bubble.className = "flex flex-col items-end gap-1.5 max-w-[80%] self-end text-xs p-3 rounded-xl bg-violet-950/20 border border-violet-800/20 text-violet-200 leading-relaxed mb-3 font-mono";
+        bubble.innerHTML = `
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block mb-1 text-right">You (${this.profile.name})</span>
+            <p>${msg.content}</p>
+          </div>
+        `;
+      }
+      logBox.appendChild(bubble);
+    });
+
+    // Auto-scroll mechanics
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  // Bind key inputs clicks
+  private bindEvents() {
+    // 1. Dynamic Tab routing
+    const tabs = document.querySelectorAll(".nav-tab");
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const target = tab.getAttribute("data-target") || "dashboard";
+        this.switchView(target);
+      });
+    });
+
+    // 2. Open Forge modal
+    const triggerForge = document.getElementById("add-word-trigger");
+    const wordModal = document.getElementById("word-modal");
+    if (triggerForge && wordModal) {
+      triggerForge.addEventListener("click", () => {
+        wordModal.classList.remove("hidden");
+        wordModal.classList.add("flex");
+        (document.getElementById("word-modal-title") as HTMLElement).innerText = "Forge New Vocabulary Spell";
+        (document.getElementById("word-form") as HTMLFormElement).reset();
+        (document.getElementById("word-edit-index") as HTMLInputElement).value = "";
+      });
+    }
+
+    // Cancel / close word Forge modal
+    const closeWordBtn = document.getElementById("close-word-modal-btn");
+    const cancelWordBtn = document.getElementById("cancel-word-modal-btn");
+    if (wordModal) {
+      const hideModal = () => {
+        wordModal.classList.remove("flex");
+        wordModal.classList.add("hidden");
+      };
+      closeWordBtn?.addEventListener("click", hideModal);
+      cancelWordBtn?.addEventListener("click", hideModal);
+    }
+
+    // Submits new Word Forge form
+    const wordForm = document.getElementById("word-form") as HTMLFormElement;
+    wordForm?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      
+      const german = (document.getElementById("word-german") as HTMLInputElement).value.trim();
+      const english = (document.getElementById("word-english") as HTMLInputElement).value.trim();
+      const category = (document.getElementById("word-category") as HTMLSelectElement).value;
+      const difficulty = (document.getElementById("word-difficulty") as HTMLSelectElement).value as any;
+
+      if (!german || !english) return;
+
+      const newWord: Word = {
+        german,
+        english,
+        category,
+        difficulty,
+        isFavorite: false,
+        accuracyCount: 0,
+        errorCount: 0
+      };
+
+      const added = this.dictionary.addWord(newWord);
+      if (added) {
+        this.displayBannerNotification(`📖 Forged Spell: "${german}" successfully learned!`);
+        // Trigger Sheets async write sync background if GAS URL configured
+        if (this.dictionary.getAppsScriptUrl()) {
+          this.dictionary.syncWithGoogleSheets();
+        }
+      } else {
+        alert("❌ Duplicate Word! This German term already exists inside your handbook.");
+      }
+
+      if (wordModal) wordModal.classList.add("hidden");
+      this.renderAllViews();
+    });
+
+    // 3. Search or filter vocabulary items
+    const searchInp = document.getElementById("vocab-search");
+    searchInp?.addEventListener("input", () => this.renderDictionaryGrid());
+
+    const filtCat = document.getElementById("vocab-filter-category");
+    filtCat?.addEventListener("change", () => this.renderDictionaryGrid());
+
+    const filtFv = document.getElementById("vocab-filter-favor");
+    filtFv?.addEventListener("change", () => this.renderDictionaryGrid());
+
+    // Sync button trigger inside Dictionary Quest book tabs
+    document.getElementById("trigger-sync-sheet-btn")?.addEventListener("click", () => this.performManualSync());
+
+    // 5. Game practices entrance triggers
+    document.getElementById("start-practices-hero")?.addEventListener("click", () => {
+      this.switchView("games");
+    });
+
+    const gameModeSelectors = document.querySelectorAll("[data-game]");
+    gameModeSelectors.forEach(selector => {
+      selector.addEventListener("click", () => {
+        const mode = selector.getAttribute("data-game") || "quiz";
+        
+        // Hearts checks for Boss battle
+        if (mode === "boss" && this.dictionary.getWords().length < 4) {
+          alert("👹 High Danger! You must forge at least 4 unique vocab words inside your handbook before challenging the Boss Troll Overlord!");
+          return;
+        }
+
+        const arena = document.getElementById("games-selection-screen");
+        const playground = document.getElementById("game-playground");
+        
+        if (arena) arena.classList.add("hidden");
+        if (playground) playground.classList.remove("hidden");
+
+        // Open game playgrounds
+        const gameActiveTitle = document.getElementById("game-active-title");
+        if (gameActiveTitle) {
+          gameActiveTitle.innerText = mode === "quiz" ? "Spiritual Multi-Choice Arena" 
+                                    : mode === "typing" ? "Action Spelling Dojo" 
+                                    : mode === "flashcards" ? "Flashcards Remembrance Study" 
+                                    : mode === "listening" ? "Aural Listening Trials"
+                                    : mode === "speaking" ? "Pronunciation Vocal Trials"
+                                    : mode === "matching" ? "Tile Matching Battle"
+                                    : "Boss Battle Duel: Vocabulary Overlord Troll!";
+        }
+
+        // Run game engine
+        this.games.start(mode, 5); // 5 Questions standard practices session
+      });
+    });
+
+    // Quit active practice
+    document.getElementById("quit-game-btn")?.addEventListener("click", () => {
+      if (confirm("Are you sure you want to retreat to the Adventure Guild hall? Streak dates won't count.")) {
+        this.switchView("games");
+      }
+    });
+
+    // 6. AI Interactive Chatbot Tutor trigger commands
+    const promptInput = document.getElementById("ai-chat-input") as HTMLInputElement;
+    const sendBtn = document.getElementById("ai-chat-send-btn");
+
+    const execAIQuery = async () => {
+      const rawPrompt = promptInput?.value.trim();
+      if (!rawPrompt) return;
+
+      // Reset text field
+      promptInput.value = "";
+
+      // Push memory user message local
+      this.chatMessages.push({ role: "user", content: rawPrompt });
+      this.renderAIChatMemory();
+
+      // Show typing owl placeholder bubble
+      const logBox = document.getElementById("ai-chat-logs");
+      const loadingBubble = document.createElement("div");
+      loadingBubble.className = "flex items-start gap-2.5 max-w-[85%] self-start text-xs p-3 rounded-xl bg-slate-900 border border-slate-800 text-indigo-350 italic animate-pulse mb-3";
+      loadingBubble.innerHTML = `🦉 <span>Owl Adler is whispering spells... Please wait...</span>`;
+      logBox?.appendChild(loadingBubble);
+      logBox!.scrollTop = logBox!.scrollHeight;
+
+      try {
+        const response = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: this.chatMessages,
+            userProfile: {
+              level: this.profile.level,
+              streak: this.profile.streak,
+              xp: this.profile.xp,
+              weakWords: this.profile.weakWords
+            }
+          })
+        });
+
+        const data = await response.json();
+        
+        // Remove typing placeholder
+        loadingBubble.remove();
+
+        if (data.text) {
+          this.chatMessages.push({ role: "assistant", content: data.text });
+        } else {
+          this.chatMessages.push({ role: "assistant", content: "Forgive me, adventurer, my owl scroll magic has expired or the API endpoint is loaded. Try asking another question!" });
+        }
+        this.renderAIChatMemory();
+
+      } catch (err) {
+        loadingBubble.remove();
+        this.chatMessages.push({ role: "assistant", content: "Apologies! Adler couldn't decipher that spell. The offline companion is active. Ensure your server endpoints are running without constraints." });
+        this.renderAIChatMemory();
+      }
+    };
+
+    sendBtn?.addEventListener("click", execAIQuery);
+    promptInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") execAIQuery();
+    });
+
+    // Presets chatbot query hooks
+    document.querySelectorAll(".chat-preset").forEach(preset => {
+      preset.addEventListener("click", () => {
+        const txt = preset.textContent?.trim() || "";
+        if (promptInput) {
+          promptInput.value = txt;
+          execAIQuery();
+        }
+      });
+    });
+
+    // NPC Companion hover tips routine
+    document.getElementById("ask-companion-tip")?.addEventListener("click", async () => {
+      const bubble = document.getElementById("companion-bubble");
+      if (bubble) {
+        bubble.innerText = "🔮 Calling Owl wisdom...";
+      }
+
+      // Generate funny small vocabulary tips using Sheets or defaults
+      const weak = this.dictionary.getWeakWords();
+      const hasWeak = weak.length > 0;
+      const targetWord = hasWeak ? weak[0].german : "das Abenteuer";
+
+      try {
+        const response = await fetch("/api/ai/sentence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ word: targetWord })
+        });
+        const data = await response.json();
+        if (bubble) {
+          bubble.innerHTML = `🌟 Adler Tip for memorizing <b>"${targetWord}"</b>:<br><q class="text-[10px] text-violet-300 leading-relaxed italic mt-1 font-mono">"${data.tip || 'Practice spelling!'}"</q>`;
+        }
+      } catch (e) {
+        if (bubble) {
+          bubble.innerText = `"Adventure awaits! Click Practicing tabs or forge cards with custom articles (der, die, das)!"`;
+        }
+      }
+    });
+
+    // Clear chat memory
+    document.getElementById("clear-ai-chat-btn")?.addEventListener("click", () => {
+      this.chatMessages = [
+        { role: "assistant", content: "Grüezi! My memory lists are cleared. What would you like to target today?" }
+      ];
+      this.renderAIChatMemory();
+    });
+  }
+
+  // Secure offline cache save procedure
+  private async performManualSync() {
+    const btn = document.getElementById("trigger-sync-sheet-btn");
+    
+    if (btn) {
+      btn.setAttribute("disabled", "true");
+      btn.innerHTML = `<span>⏳</span> Saving...`;
+    }
+
+    // Always ensure local storage cache is persisted
+    this.dictionary.saveToCache();
+    this.saveProfile();
+
+    const isRealUser = this.profile.email && this.profile.email !== "notconnect@domain.com" && this.profile.email !== "guest@domain.com";
+    if (isRealUser) {
+      try {
+        const response = await fetch("/api/auth/save-progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: this.profile.email,
+            profile: this.profile,
+            words: this.dictionary.getWords()
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          this.displayBannerNotification(`🔄 Guild server backup successful! Levels, gold, and ${this.dictionary.getWords().length} words saved.`, "emerald");
+        } else {
+          throw new Error(data.error || "Guild server sync offline");
+        }
+      } catch (err: any) {
+        console.error(err);
+        this.displayBannerNotification(`💾 Offline backup secured! Local browser progress is safe.`, "emerald");
+      }
+    } else {
+      const hasToken = !!localStorage.getItem("gq_google_access_token");
+      if (hasToken) {
+        const result = await this.dictionary.syncWithGoogleSheets();
+        if (result.success) {
+          this.displayBannerNotification(`🔄 ${result.message || 'Sheets successfully updated!'}`);
+        } else {
+          this.displayBannerNotification(`💾 Local backup secured! Progress saved to browser.`, "emerald");
+        }
+      } else {
+        // Fast, offline-first feedback loop
+        await new Promise(resolve => setTimeout(resolve, 350));
+        this.displayBannerNotification(`💾 Local RPG Profile Saved! Progress secured.`, "emerald");
+      }
+    }
+
+    if (btn) {
+      btn.removeAttribute("disabled");
+      btn.innerHTML = `<span>💾</span> Save Progress`;
+    }
+
+    this.renderAllViews();
+  }
+
+  // Display glowing, modern gaming notifications banner
+  private displayBannerNotification(message: string, theme: "purple" | "emerald" | "blue" = "purple") {
+    const notifyDiv = document.createElement("div");
+    // Styling colors
+    const colorClass = theme === "emerald" 
+      ? "from-emerald-950/95 to-emerald-900 border-emerald-500 text-emerald-300 decoration-emerald-400"
+      : theme === "blue"
+      ? "from-blue-950/95 to-blue-900 border-blue-500 text-blue-300 decoration-blue-400"
+      : "from-violet-950/95 to-violet-900 border-violet-500 text-violet-300 decoration-violet-400 font-mono";
+
+    notifyDiv.className = `fixed bottom-4 right-4 z-50 p-4 border rounded-2xl bg-gradient-to-tr ${colorClass} max-w-sm shadow-2xl flex items-center gap-3 transition-all duration-300 animate-float border-l-4 font-mono text-xs select-none`;
+    notifyDiv.innerHTML = `<span>📢</span> <span>${message}</span>`;
+    
+    document.body.appendChild(notifyDiv);
+
+    // Fade and remove after 4.5 seconds
+    setTimeout(() => {
+      notifyDiv.classList.add("opacity-0", "translate-y-2");
+      setTimeout(() => notifyDiv.remove(), 400);
+    }, 4500);
+  }
+
+  // Direct Google GIS oauth client login connection
+  private triggerDirectGoogleLogin() {
+    let clientId = localStorage.getItem("gq_google_client_id") || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "737075841800-djomhf1triib859c2igm758knbknb1o8.apps.googleusercontent.com";
+    
+    localStorage.setItem("gq_google_client_id", clientId);
+
+    if (!(window as any).google) {
+      this.displayBannerNotification("⏳ Google Identity services are loading. Please wait half a second and retry!");
+      return;
+    }
+
+    try {
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse && tokenResponse.access_token) {
+            const token = tokenResponse.access_token;
+            localStorage.setItem("gq_google_access_token", token);
+            
+            // Load active Google profile info
+            try {
+              const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (userInfoRes.ok) {
+                const googleUser = await userInfoRes.json();
+                this.profile.name = googleUser.name || "Google Adventurer";
+                this.profile.email = googleUser.email || "adventurer@gmail.com";
+                this.profile.avatar = googleUser.picture || "🛡️";
+                this.saveProfile();
+                
+                this.rewardExperience(20, 10);
+                this.displayBannerNotification(`🔑 Google Sheets synchronized for ${this.profile.name}!`, "emerald");
+                
+                // Hide modal if open
+                const authModal = document.getElementById("auth-modal");
+                if (authModal) {
+                  authModal.classList.add("hidden");
+                  authModal.classList.remove("flex");
+                }
+
+                // Trigger primary cloud data synchronizer
+                await this.performManualSync();
+              }
+            } catch (userInfoError) {
+              console.error("Failed loading Google profile details:", userInfoError);
+              this.displayBannerNotification("🔒 Connected directly to Sheets! (Failed loading user profile picture)");
+              const authModal = document.getElementById("auth-modal");
+              if (authModal) {
+                authModal.classList.add("hidden");
+                authModal.classList.remove("flex");
+              }
+            }
+            this.renderAllViews();
+          }
+        }
+      });
+      client.requestAccessToken();
+    } catch (e: any) {
+      console.error("Failed starting Google Auth token client:", e);
+      this.displayBannerNotification(`⚠️ Authentication Error: ${e.message || "Invalid Google Client ID."}`);
+    }
+  }
+
+  // Create immersive local RPG character connection integration
+  private initializeGoogleLogin() {
+    const loginBtn = document.getElementById("login-trigger-btn");
+    const authModal = document.getElementById("auth-modal");
+    const closeAuthBtn = document.getElementById("close-auth-modal-btn");
+    const signUpBtn = document.getElementById("auth-simulator-connect-btn");
+    const signInBtn = document.getElementById("auth-signin-btn");
+
+    const tabSignUpPage = document.getElementById("tab-auth-signup");
+    const tabSignInPage = document.getElementById("tab-auth-signin");
+
+    const signUpPanel = document.getElementById("auth-signup-panel");
+    const signInPanel = document.getElementById("auth-signin-panel");
+    const otpPanel = document.getElementById("auth-otp-panel");
+
+    // Dynamic Tab Switches inside Auth Modal
+    if (tabSignUpPage && tabSignInPage && signUpPanel && signInPanel) {
+      tabSignUpPage.addEventListener("click", () => {
+        signUpPanel.classList.remove("hidden");
+        signInPanel.classList.add("hidden");
+        if (otpPanel) otpPanel.classList.add("hidden");
+
+        tabSignUpPage.className = "py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-center bg-violet-600/20 text-violet-300 border border-violet-500/25 transition-all";
+        tabSignInPage.className = "py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-center text-slate-400 hover:text-slate-200 transition-all font-sans border border-transparent";
+      });
+
+      tabSignInPage.addEventListener("click", () => {
+        signUpPanel.classList.add("hidden");
+        signInPanel.classList.remove("hidden");
+        if (otpPanel) otpPanel.classList.add("hidden");
+
+        tabSignUpPage.className = "py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-center text-slate-400 hover:text-slate-200 transition-all font-sans border border-transparent";
+        tabSignInPage.className = "py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-center bg-violet-600/20 text-violet-300 border border-violet-500/25 transition-all";
+      });
+    }
+
+    // Interactive class choice selector
+    const classOpts = document.querySelectorAll(".class-opt");
+    const selectedAvatarInp = document.getElementById("auth-selected-avatar") as HTMLInputElement;
+    const selectedClassInp = document.getElementById("auth-selected-class") as HTMLInputElement;
+
+    classOpts.forEach((opt: any) => {
+      opt.addEventListener("click", () => {
+        // Clear previous selection
+        classOpts.forEach((o: any) => {
+          o.classList.remove("border-2", "border-violet-500", "bg-violet-950/20");
+          o.classList.add("border", "border-slate-800", "bg-slate-900/40");
+        });
+
+        // Toggle selected class on active option
+        opt.classList.remove("border", "border-slate-800", "bg-slate-900/40");
+        opt.classList.add("border-2", "border-violet-500", "bg-violet-950/20");
+
+        // Save selected attributes
+        if (selectedAvatarInp) selectedAvatarInp.value = opt.getAttribute("data-avatar") || "🛡️";
+        if (selectedClassInp) selectedClassInp.value = opt.getAttribute("data-class") || "Cavalier";
+      });
+    });
+
+    if (loginBtn) {
+      loginBtn.addEventListener("click", () => {
+        // If logged in under a custom profile, log them out and reset to default guest status
+        if (this.profile.email && this.profile.email !== "notconnect@domain.com") {
+          // Reset profile to default
+          this.profile = {
+            level: 1,
+            xp: 120,
+            xpNeeded: 300,
+            streak: 0,
+            coins: 150,
+            favoriteCategories: ["Basics", "Adventure"],
+            weakWords: [],
+            achievements: ["recruit"],
+            name: "Guest Adventurer",
+            email: "notconnect@domain.com",
+            avatar: "🛡️",
+            lastPracticeDate: ""
+          };
+          this.saveProfile();
+          localStorage.removeItem("gq_vocab_cache");
+          this.dictionary.setWords([
+            { german: "der Drache", english: "the dragon", category: "Adventure", difficulty: "Medium", isFavorite: true, accuracyCount: 0, errorCount: 0 },
+            { german: "die Burg", english: "the castle", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "das Abenteuer", english: "the adventure", category: "Basics", difficulty: "Easy", isFavorite: true, accuracyCount: 0, errorCount: 0 },
+            { german: "überwinden", english: "to overcome / vanquish", category: "Verbs", difficulty: "Hard", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "der Trank", english: "the potion", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "das Schwert", english: "the sword", category: "Adventure", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "schnell", english: "fast / swift", category: "Adjectives", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "der Wald", english: "the forest", category: "Nouns", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "die Hexe", english: "the witch", category: "Adventure", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "der Schatz", english: "the treasure", category: "Adventure", difficulty: "Easy", isFavorite: true, accuracyCount: 0, errorCount: 0 },
+            { german: "kämpfen", english: "to fight / battle", category: "Verbs", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "der Schild", english: "the shield", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "guten Morgen", english: "good morning", category: "Conversation", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+            { german: "wie geht es dir?", english: "how are you?", category: "Conversation", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 }
+          ]);
+          this.renderAllViews();
+          this.displayBannerNotification("🚪 Logged out! Resumed offline local guest play.");
+          return;
+        }
+
+        // Sign in directly with Google Account
+        this.triggerDirectGoogleLogin();
+      });
+    }
+
+    if (closeAuthBtn && authModal) {
+      closeAuthBtn.addEventListener("click", () => {
+        authModal.classList.add("hidden");
+        authModal.classList.remove("flex");
+      });
+    }
+
+    // NEW MULTI-STEP VERIFICATION SYSTEM: DISPATCH OTP & VERIFY REAL OWNERSHIP
+    const otpCodeInput = document.getElementById("auth-otp-code") as HTMLInputElement;
+    const otpVerifyBtn = document.getElementById("auth-otp-verify-btn");
+    const otpBackBtn = document.getElementById("auth-otp-back-btn");
+    const sandboxHint = document.getElementById("auth-otp-sandbox-hint");
+    const sandboxValue = document.getElementById("auth-sandbox-otp-value");
+
+    // Setup back button
+    if (otpBackBtn && signUpPanel && otpPanel) {
+      otpBackBtn.addEventListener("click", () => {
+        otpPanel.classList.add("hidden");
+        signUpPanel.classList.remove("hidden");
+        if (sandboxHint) sandboxHint.classList.add("hidden");
+      });
+    }
+
+    // HANDLER FOR NEW CHARACTER SIGN UP (Phase 1: Request OTP)
+    if (signUpBtn && authModal && signUpPanel && otpPanel) {
+      signUpBtn.addEventListener("click", async () => {
+        const nameInput = (document.getElementById("auth-simulator-name") as HTMLInputElement)?.value.trim();
+        const emailInput = (document.getElementById("auth-signup-email") as HTMLInputElement)?.value.trim();
+        const passwordInput = (document.getElementById("auth-signup-password") as HTMLInputElement)?.value.trim();
+
+        if (!nameInput || !emailInput || !passwordInput) {
+          alert("⚠️ All fields (Name, Email, and Password) are required to create an account.");
+          return;
+        }
+
+        // Strict Email format check
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(emailInput)) {
+          alert("⚠️ Please enter a valid, real email address (e.g. yourname@domain.com).");
+          return;
+        }
+
+        // Strict Password length check
+        if (passwordInput.length < 6) {
+          alert("⚠️ Password must be at least 6 characters long to meet integrity rules.");
+          return;
+        }
+
+        const chosenAvatar = selectedAvatarInp ? selectedAvatarInp.value : "🛡️";
+        const chosenClass = selectedClassInp ? selectedClassInp.value : "Cavalier";
+
+        signUpBtn.setAttribute("disabled", "true");
+        signUpBtn.innerText = "⏳ Dispatching OTP Code...";
+
+        try {
+          const response = await fetch("/api/auth/otp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: emailInput,
+              password: passwordInput,
+              name: nameInput,
+              avatar: chosenAvatar,
+              customTag: chosenClass,
+              profile: {
+                level: 1,
+                xp: 120,
+                xpNeeded: 300,
+                streak: 0,
+                coins: 150,
+                favoriteCategories: ["Basics", "Adventure"],
+                weakWords: [],
+                achievements: ["recruit"],
+                name: nameInput,
+                email: emailInput.toLowerCase().trim(),
+                avatar: chosenAvatar,
+                customTag: chosenClass,
+                lastPracticeDate: ""
+              },
+              words: this.dictionary.getWords() // Pass initial word set
+            })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to dispatch verification code.");
+          }
+
+          this.displayBannerNotification("🗝️ Verification code generated successfully!", "purple");
+
+          // Hide sign up screen & open code entry screen
+          signUpPanel.classList.add("hidden");
+          otpPanel.classList.remove("hidden");
+
+          if (data.sandbox && data.otp) {
+            if (sandboxHint && sandboxValue) {
+              sandboxValue.innerText = data.otp;
+              sandboxHint.classList.remove("hidden");
+            }
+          } else {
+            if (sandboxHint) sandboxHint.classList.add("hidden");
+          }
+
+          if (otpCodeInput) {
+            otpCodeInput.value = "";
+            otpCodeInput.focus();
+          }
+
+        } catch (err: any) {
+          console.error(err);
+          alert(`❌ OTP Failed: ${err.message}`);
+        } finally {
+          signUpBtn.removeAttribute("disabled");
+          signUpBtn.innerText = "➕ Create Free Account";
+        }
+      });
+    }
+
+    // HANDLER FOR OTP CODE CONFIRMATION (Phase 2: Finalize Sign Up)
+    if (otpVerifyBtn && authModal && signUpPanel && otpPanel) {
+      otpVerifyBtn.addEventListener("click", async () => {
+        const emailInput = (document.getElementById("auth-signup-email") as HTMLInputElement)?.value.trim();
+        const codeInput = otpCodeInput?.value.trim();
+
+        if (!codeInput || codeInput.length !== 6) {
+          alert("⚠️ Please enter the complete 6-digit verification code.");
+          return;
+        }
+
+        otpVerifyBtn.setAttribute("disabled", "true");
+        otpVerifyBtn.innerText = "⏳ Verifying Credentials...";
+
+        try {
+          const response = await fetch("/api/auth/otp/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: emailInput,
+              otp: codeInput
+            })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Verification failed");
+          }
+
+          // Successfully verified and created! Update current active player context
+          this.profile = data.user.profile;
+          this.profile.name = data.user.name;
+          this.profile.email = data.user.email;
+          this.profile.avatar = data.user.avatar;
+          this.profile.customTag = data.user.customTag;
+          this.saveProfile();
+
+          if (data.user.words && data.user.words.length > 0) {
+            this.dictionary.setWords(data.user.words);
+          }
+
+          this.displayBannerNotification(`🔑 Credentials Verified! Welcome back to German Quest, ${this.profile.name}!`, "emerald");
+
+          authModal.classList.add("hidden");
+          authModal.classList.remove("flex");
+          this.renderAllViews();
+          this.fetchSmartAIRecommendations();
+
+        } catch (err: any) {
+          console.error(err);
+          alert(`❌ Verification Failed: ${err.message}`);
+        } finally {
+          otpVerifyBtn.removeAttribute("disabled");
+          otpVerifyBtn.innerText = "🛡️ Verify Code & Complete Sign Up";
+        }
+      });
+    }
+
+    // HANDLER FOR SIGN IN / LOGIN
+    if (signInBtn && authModal) {
+      signInBtn.addEventListener("click", async () => {
+        const emailInput = (document.getElementById("auth-signin-email") as HTMLInputElement)?.value.trim();
+        const passwordInput = (document.getElementById("auth-signin-password") as HTMLInputElement)?.value.trim();
+
+        if (!emailInput || !passwordInput) {
+          alert("⚠️ Please provide both your email and password.");
+          return;
+        }
+
+        signInBtn.setAttribute("disabled", "true");
+        signInBtn.innerText = "⏳ Signing In...";
+
+        try {
+          const response = await fetch("/api/auth/signin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: emailInput,
+              password: passwordInput
+            })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "SignIn failed");
+          }
+
+          // Successfully signed in!
+          this.profile = data.user.profile;
+          this.profile.name = data.user.name;
+          this.profile.email = data.user.email;
+          this.profile.avatar = data.user.avatar;
+          this.profile.customTag = data.user.customTag;
+          this.saveProfile();
+
+          if (data.user.words) {
+            this.dictionary.setWords(data.user.words);
+          }
+
+          this.displayBannerNotification(`🔑 Welcome back, ${this.profile.name}! Your progress has been loaded.`, "emerald");
+
+          authModal.classList.add("hidden");
+          authModal.classList.remove("flex");
+
+          // Reset sign-in input values
+          (document.getElementById("auth-signin-email") as HTMLInputElement).value = "";
+          (document.getElementById("auth-signin-password") as HTMLInputElement).value = "";
+
+          this.renderAllViews();
+          this.fetchSmartAIRecommendations();
+
+        } catch (err: any) {
+          console.error(err);
+          alert(`❌ Login Failed: ${err.message}`);
+        } finally {
+          signInBtn.removeAttribute("disabled");
+          signInBtn.innerText = "🔑 Sign In to Account";
+        }
+      });
+    }
+  }
+
+  // Token decoding helper
+  private decodeJwtToken(token: string): any {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Check if authenticated to toggle visibility of Landing welcome vs App Core
+  private renderLandingAndAppToggle() {
+    const landingContainer = document.getElementById("landing-page-interface");
+    const appContainer = document.getElementById("app-core-interface");
+    
+    // Check if authenticated
+    const isGuest = this.profile.email && this.profile.email !== "notconnect@domain.com";
+    const hasGoogle = !!localStorage.getItem("gq_google_access_token");
+    const isLoggedIn = isGuest || hasGoogle;
+    
+    if (isLoggedIn) {
+      if (landingContainer) {
+        landingContainer.classList.add("hidden");
+        landingContainer.classList.remove("flex");
+      }
+      if (appContainer) {
+        appContainer.classList.remove("hidden");
+        appContainer.classList.add("flex");
+      }
+    } else {
+      if (landingContainer) {
+        landingContainer.classList.remove("hidden");
+        landingContainer.classList.add("flex");
+      }
+      if (appContainer) {
+        appContainer.classList.add("hidden");
+        appContainer.classList.remove("flex");
+      }
+    }
+  }
+
+  private bindLandingEvents() {
+    const btnSim = document.getElementById("landing-sim-btn");
+    const btnSimHero = document.getElementById("hero-cta-sim");
+    const btnQuickGuest = document.getElementById("hero-cta-guest-quick");
+    const authModal = document.getElementById("auth-modal");
+
+    const triggerSimAuth = () => {
+      this.triggerDirectGoogleLogin();
+    };
+
+    btnSim?.addEventListener("click", triggerSimAuth);
+    btnSimHero?.addEventListener("click", triggerSimAuth);
+    
+    // Quick starter guest login sequence
+    btnQuickGuest?.addEventListener("click", () => {
+      this.profile.name = "Guest Adventurer";
+      this.profile.email = "guest@domain.com"; // sets email away from "notconnect@domain.com" to immediately bypass landing page
+      this.profile.avatar = "🛡️";
+      this.profile.customTag = "Guest";
+      this.saveProfile();
+      this.renderAllViews();
+      this.displayBannerNotification("⚡ Quick Start: Welcomed Guest Adventurer!", "blue");
+    });
+  }
+
+  private demoWordIndex = 0;
+
+  private initLandingInteractiveDemo() {
+    const DEMO_WORDS = [
+      { german: "die Zauberei", english: "magic" },
+      { german: "der Drache", english: "dragon" },
+      { german: "die Burg", english: "castle" },
+      { german: "das Abenteuer", english: "adventure" },
+      { german: "überwinden", english: "overcome" }
+    ];
+
+    const forgeBtn = document.getElementById("sandbox-forge-btn");
+    const inputEl = document.getElementById("sandbox-input") as HTMLInputElement;
+    const germanEl = document.getElementById("sandbox-german-word");
+    const feedbackEl = document.getElementById("sandbox-feedback");
+    const cardEl = document.getElementById("sandbox-card");
+
+    if (forgeBtn && inputEl && germanEl && feedbackEl && cardEl) {
+      forgeBtn.addEventListener("click", () => {
+        const val = inputEl.value.trim().toLowerCase();
+        const targetWord = DEMO_WORDS[this.demoWordIndex];
+        
+        const isCorrect = val === targetWord.english || 
+                          val === targetWord.english.toLowerCase() || 
+                          val === `the ${targetWord.english}` || 
+                          val === `to ${targetWord.english}`;
+        
+        if (isCorrect) {
+          feedbackEl.innerHTML = `<span class="text-emerald-400 font-bold">✨ SPELL SUCCESSFULLY FORGED! +50 XP!</span>`;
+          cardEl.className = "glass-panel rounded-3xl p-6 border border-emerald-500/40 flex flex-col gap-4 shadow-xl select-none glow-emerald animate-float";
+          
+          this.demoWordIndex = (this.demoWordIndex + 1) % DEMO_WORDS.length;
+          
+          setTimeout(() => {
+            const nextWord = DEMO_WORDS[this.demoWordIndex];
+            germanEl.innerText = nextWord.german;
+            inputEl.value = "";
+            cardEl.className = "glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col gap-4 shadow-xl select-none";
+            feedbackEl.innerHTML = `Great job! Now forge the next spell: <b>${nextWord.german}</b>. Hint: starts with '<strong>${nextWord.english[0]}</strong>'.`;
+          }, 1600);
+        } else {
+          feedbackEl.innerHTML = `<span class="text-rose-400 font-bold">❌ Spell Backfired! It actually means: "${targetWord.english}". Try again!</span>`;
+          cardEl.className = "glass-panel rounded-3xl p-6 border border-rose-500/45 flex flex-col gap-4 shadow-xl select-none glow-rose animate-shake";
+          setTimeout(() => {
+            cardEl.className = "glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col gap-4 shadow-xl select-none";
+          }, 850);
+        }
+      });
+
+      // Allow enter key press
+      inputEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          forgeBtn.click();
+        }
+      });
+    }
+  }
+}
+
+// Instantiate the app core orchestrator on load or immediately if DOM is already parsed
+function initApp() {
+  if (!(window as any).GermanQuest) {
+    (window as any).GermanQuest = new AppOrchestrator();
+  }
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", initApp);
+} else {
+  initApp();
+}

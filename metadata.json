@@ -1,0 +1,6 @@
+{
+  "name": "German Quest",
+  "description": "A complete modern gamified German vocabulary learning website with roleplaying elements and AI tutor integration.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
