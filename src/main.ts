@@ -2,6 +2,7 @@ import "./index.css";
 import { Dictionary, Word } from "./dictionary";
 import { Analytics } from "./analytics";
 import { Games } from "./games";
+import { getClientOfflineTutorResponse } from "./tutor-offline";
 
 // Global user profile state key
 const PROFILE_KEY = "gq_user_profile";
@@ -1202,7 +1203,9 @@ export class AppOrchestrator {
 
       } catch (err) {
         loadingBubble.remove();
-        this.chatMessages.push({ role: "assistant", content: "Apologies! Maaz couldn't decipher that spell. The offline companion is active. Ensure your server endpoints are running without constraints." });
+        const lastUserMsg = this.chatMessages[this.chatMessages.length - 1]?.content || "";
+        const fallbackText = getClientOfflineTutorResponse(lastUserMsg, this.profile);
+        this.chatMessages.push({ role: "assistant", content: fallbackText });
         this.renderAIChatMemory();
       }
     };
