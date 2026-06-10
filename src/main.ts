@@ -120,7 +120,7 @@ export class AppOrchestrator {
 
     // Seed preset tutor message
     this.chatMessages = [
-      { role: "assistant", content: "Grüezi! I am Adler, your tutor owl. Tap any preset topic below, ask a complex question, or practice talking German with me! Type your message and click 'Cast Spell'." }
+      { role: "assistant", content: "Grüezi! I am Maaz, your tutor owl. Tap any preset topic below, ask a complex question, or practice talking German with me! Type your message and click 'Cast Spell'." }
     ];
   }
 
@@ -408,7 +408,7 @@ export class AppOrchestrator {
   }
 
   // Smart AI Recommendations generator
-  private async fetchSmartAIRecommendations() {
+  private async fetchSmartAIRecommendations(force: boolean = false) {
     const isGuest = this.profile.email && this.profile.email !== "notconnect@domain.com";
     const hasGoogle = !!localStorage.getItem("gq_google_access_token");
     if (!(isGuest || hasGoogle)) return;
@@ -416,8 +416,65 @@ export class AppOrchestrator {
     const recommContainer = document.getElementById("dashboard-recomm-container");
     if (!recommContainer) return;
 
+    // Read cache first if we are not forcing a refresh
+    const cacheKey = "gq_smart_recomms_v1";
+    const cachedData = localStorage.getItem(cacheKey);
+
+    if (cachedData && !force) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.renderRecommendationsUI(parsed);
+          return;
+        }
+      } catch (err) {
+        // Fall back to loader
+      }
+    }
+
+    // Default high-quality fallback presets to avoid making any API requests whatsoever if we are just starting under quota
+    const fallbackPresets = [
+      {
+        word: "der Drache",
+        meaning: "the dragon",
+        category: "Fantasy",
+        difficulty: "Easy",
+        xpAward: 30,
+        lore: "A fierce fire-breathing guild creature with massive wing spans."
+      },
+      {
+        word: "das Abenteuer",
+        meaning: "the adventure",
+        category: "Roleplay",
+        difficulty: "Medium",
+        xpAward: 45,
+        lore: "An epic sequence of trials testing your focus state stamina."
+      },
+      {
+        word: "die Burg",
+        meaning: "the castle",
+        category: "Castle",
+        difficulty: "Easy",
+        xpAward: 30,
+        lore: "A towering stone fortification shielding villagers from the wild woods."
+      }
+    ];
+
+    if (!force) {
+      // Use fallback presets to save quota on load
+      localStorage.setItem(cacheKey, JSON.stringify(fallbackPresets));
+      this.renderRecommendationsUI(fallbackPresets);
+      return;
+    }
+
     try {
-      // API payload POST
+      recommContainer.innerHTML = `
+        <div class="flex items-center justify-center py-8">
+          <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+        </div>
+      `;
+
+      // API payload POST only on explicit manual force (button click)
       const response = await fetch("/api/ai/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -431,38 +488,70 @@ export class AppOrchestrator {
       const data = await response.json();
       const list = data.recommendations || [];
 
-      recommContainer.innerHTML = "";
-      if (list.length === 0) {
-        recommContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No suggestions available.</p>`;
-        return;
+      if (list.length > 0) {
+        localStorage.setItem(cacheKey, JSON.stringify(list));
+        this.renderRecommendationsUI(list);
+      } else {
+        this.renderRecommendationsUI(fallbackPresets);
       }
-
-      list.forEach((w: any) => {
-        const item = document.createElement("div");
-        item.className = "p-2.5 rounded-xl bg-slate-900/90 border border-blue-900/20 hover:border-blue-500/30 transition-colors text-left font-mono relative cursor-help flex flex-col justify-center";
-        item.title = w.lore || "New word recommended by AI owl";
-
-        item.innerHTML = `
-          <div class="flex justify-between items-center mb-0.5 leading-none">
-            <span class="text-xs font-semibold text-blue-400 block">${w.word}</span>
-            <span class="text-[8px] px-1.5 py-0.5 bg-blue-950 text-blue-300 rounded uppercase font-bold tracking-wide">${w.difficulty}</span>
-          </div>
-          <div class="flex justify-between items-center leading-none">
-            <span class="text-[10px] text-slate-400 block">${w.meaning}</span>
-            <span class="text-[9px] text-amber-500 font-bold">+${w.xpAward || 30}xp</span>
-          </div>
-          <div class="text-[9px] text-slate-500 italic mt-1 font-sans border-t border-slate-800/60 pt-1 leading-tight">
-             🧙‍♂️ Lore: "${w.lore || 'High reward target.'}"
-          </div>
-        `;
-        recommContainer.appendChild(item);
-      });
     } catch (e) {
       console.error("AI Recommendation failed:", e);
-      if (recommContainer) {
-        recommContainer.innerHTML = `<span class="text-[11px] text-rose-400 text-center">Failed to load AI recommendations. Check endpoint.</span>`;
-      }
+      // Fallback gracefully on rate limits
+      this.renderRecommendationsUI(fallbackPresets);
     }
+  }
+
+  private renderRecommendationsUI(list: any[]) {
+    const recommContainer = document.getElementById("dashboard-recomm-container");
+    if (!recommContainer) return;
+
+    recommContainer.innerHTML = "";
+    
+    list.forEach((w: any) => {
+      const item = document.createElement("div");
+      item.className = "p-3 rounded-xl bg-slate-900/90 border border-blue-900/20 hover:border-blue-500/30 transition-all text-left font-mono hover:scale-[1.01] flex flex-col justify-center cursor-pointer";
+      item.title = "Click to add this recommended word to your local deck!";
+
+      item.innerHTML = `
+        <div class="flex justify-between items-center mb-1 leading-none">
+          <span class="text-xs font-bold text-blue-400 block">${w.word}</span>
+          <span class="text-[8px] px-1.5 py-0.5 bg-blue-950 text-blue-300 rounded uppercase font-bold tracking-wide">${w.difficulty}</span>
+        </div>
+        <div class="flex justify-between items-center leading-none">
+          <span class="text-[10px] text-slate-300 block">${w.meaning}</span>
+          <span class="text-[9px] text-amber-500 font-bold">+${w.xpAward || 30}xp</span>
+        </div>
+        <div class="text-[9px] text-slate-500 italic mt-1.5 font-sans border-t border-slate-800/60 pt-1.5 leading-snug">
+           🧙‍♂️ Lore: "${w.lore || 'Excellent study target.'}"
+        </div>
+      `;
+
+      // Interactive click to instantly learn the recommended word!
+      item.addEventListener("click", () => {
+        const cleanGerman = w.word.replace(/^(der|die|das)\s+/i, '');
+        const hasArticle = w.word.match(/^(der|die|das)\s+/i)?.[0]?.trim() || "";
+        const exists = this.dictionary.getWords().some(x => x.german.toLowerCase() === cleanGerman.toLowerCase());
+
+        if (exists) {
+          this.displayBannerNotification(`📝 "${w.word}" is already in your Quest Book handbook!`, "purple");
+        } else {
+          this.dictionary.addWord({
+            german: cleanGerman,
+            english: w.meaning,
+            category: w.category || "General",
+            difficulty: (w.difficulty === "Easy" || w.difficulty === "Medium" || w.difficulty === "Hard") ? w.difficulty : "Easy",
+            isFavorite: false,
+            accuracyCount: 0,
+            errorCount: 0
+          });
+          this.rewardExperience(15, 20); // Bonus rewards
+          this.displayBannerNotification(`✨ Added recommended word "${w.word}" to your deck! (+15 XP)`, "emerald");
+          this.renderAllViews();
+        }
+      });
+
+      recommContainer.appendChild(item);
+    });
   }
 
   // Core Word Card drawers
@@ -650,28 +739,41 @@ export class AppOrchestrator {
   }
 
   // Hall of Fame Leaderboard drawers
-  private renderLeaderboardList() {
+  private async renderLeaderboardList() {
     const list = document.getElementById("leaderboard-list");
     if (!list) return;
 
-    // Standard simulated players to compare against
-    const leaderboardPlayers = [
-      { name: "Siegfried_Word", level: 5, xp: 1450, tag: "Spell Lord", avatar: "🧙‍♂️" },
-      { name: "Brunhilde_Learn", level: 4, xp: 950, tag: "Teutonic Hero", avatar: '⚔️' },
-      { name: "Hans_Quest", level: 3, xp: 620, tag: "Rune Tracker", avatar: "🛡️" },
-      { name: "Adler_Owl_Fan", level: 2, xp: 350, tag: "", avatar: "🦉" }
-    ];
+    const isRealUser = this.profile.email && this.profile.email !== "notconnect@domain.com" && this.profile.email !== "guest@domain.com";
+    let combined: any[] = [];
+    try {
+      const response = await fetch(`/api/leaderboard?isRealUser=${isRealUser}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.leaderboard) {
+          combined = data.leaderboard;
+        }
+      }
+    } catch (e) {
+      console.error("Leaderboard live compile failed:", e);
+    }
 
-    // Insert user into records dynamically
-    const myEntry = {
-      name: this.profile.name,
-      level: this.profile.level,
-      xp: (this.profile.level - 1) * 300 + this.profile.xp, // Relative progression total
-      tag: this.profile.customTag || "",
-      avatar: "🏅"
-    };
-
-    const combined = [...leaderboardPlayers, myEntry].sort((a, b) => b.xp - a.xp);
+    if (combined.length === 0) {
+      // Fallback
+      const leaderboardPlayers = isRealUser ? [] : [
+        { name: "Siegfried_Word", level: 5, xp: 1450, tag: "Spell Lord", avatar: "🧙‍♂️" },
+        { name: "Brunhilde_Learn", level: 4, xp: 950, tag: "Teutonic Hero", avatar: "⚔️" },
+        { name: "Hans_Quest", level: 3, xp: 620, tag: "Rune Tracker", avatar: "🛡️" },
+        { name: "Adler_Owl_Fan", level: 2, xp: 350, tag: "", avatar: "🦉" }
+      ];
+      const myEntry = {
+        name: this.profile.name,
+        level: this.profile.level,
+        xp: (this.profile.level - 1) * 300 + this.profile.xp, // Relative progression total
+        tag: this.profile.customTag || "",
+        avatar: this.profile.avatar || "🏅"
+      };
+      combined = [...leaderboardPlayers, myEntry].sort((a, b) => b.xp - a.xp);
+    }
 
     list.innerHTML = "";
     combined.forEach((player, i) => {
@@ -683,13 +785,19 @@ export class AppOrchestrator {
           : 'bg-slate-900 border-slate-850/80 text-slate-350'
       }`;
 
+      const avatarStr = player.avatar || "🛡️";
+      const isUrl = avatarStr.startsWith("http://") || avatarStr.startsWith("https://") || avatarStr.includes("/");
+      const avatarHtml = isUrl 
+        ? `<img src="${avatarStr}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover border border-violet-500/30" />`
+        : `<span class="text-2xl">${avatarStr}</span>`;
+
       row.innerHTML = `
         <div class="flex items-center gap-3">
           <span class="text-xs font-bold font-mono text-slate-500 w-5 text-center">${i + 1}</span>
-          <span class="text-2xl">${player.avatar}</span>
+          ${avatarHtml}
           <div class="text-left font-mono text-xs">
             <span class="font-bold text-slate-100 ${isMe ? 'neon-text-purple' : ''}">${player.name}</span>
-            ${player.tag ? `<span class="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-slate-950 font-bold border border-slate-800 text-amber-550 uppercase">${player.tag}</span>` : ""}
+            ${player.tag ? `<span class="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-slate-950 font-bold border border-slate-800 text-amber-500 uppercase">${player.tag}</span>` : ""}
           </div>
         </div>
 
@@ -709,16 +817,175 @@ export class AppOrchestrator {
     const hudRankLevel = document.getElementById("leaderboard-my-level");
     const hudRankXp = document.getElementById("leaderboard-my-xp");
 
-    if (hudRankBadge) hudRankBadge.innerText = `#${myRankIdx + 1}`;
+    if (hudRankBadge) hudRankBadge.innerText = myRankIdx >= 0 ? `#${myRankIdx + 1}` : "N/A";
     if (hudRankName) hudRankName.innerText = this.profile.name;
     if (hudRankLevel) hudRankLevel.innerText = `${this.getLevelTitle(this.profile.level)} (Lvl ${this.profile.level})`;
-    if (hudRankXp) hudRankXp.innerText = `${myEntry.xp} Total XP`;
+    if (hudRankXp) {
+      const myCombinedXp = (this.profile.level - 1) * 300 + this.profile.xp;
+      hudRankXp.innerText = `${myCombinedXp} Total XP`;
+    }
   }
 
   // Renders AI Chat logs memory
   private renderAIChatMemory() {
     const logBox = document.getElementById("ai-chat-logs");
     if (!logBox) return;
+
+    // Helper to safely parse simple markdown styles to clean nested elements
+    const parseMarkdown = (raw: string) => {
+      if (!raw) return "";
+      
+      // Let's escape raw HTML entities first to avoid breakages or script injection, except we keep some tags
+      let text = raw
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      // Replace bold **text** with highlighted spans
+      text = text.replace(/\*\*(.*?)\*\*/g, "<strong class='font-bold text-violet-300'>$1</strong>");
+
+      // Replace italic *text* with styled italic text
+      text = text.replace(/\*(.*?)\*/g, "<em class='text-slate-200 font-semibold'>$1</em>");
+
+      const lines = text.split(/\r?\n/);
+      let htmlLines: string[] = [];
+      let inList = false;
+      let inTable = false;
+      let tableRows: string[] = [];
+
+      // Embedded table rendering helper
+      const renderTable = (rows: string[]): string => {
+        if (rows.length === 0) return "";
+        let html = "<div class='my-2.5 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950/40'><table class='w-full text-left text-[11px] font-sans border-collapse'>";
+        let hasHeader = false;
+        let parsedRows: string[][] = [];
+        
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r];
+          const cells = row.split("|").map(c => c.trim());
+          if (cells.length > 1) {
+            if (cells[0] === "") cells.shift();
+            if (cells[cells.length - 1] === "") cells.pop();
+            const isSeparator = cells.every(c => c.match(/^:?-+:?$/));
+            if (isSeparator) {
+              hasHeader = true;
+              continue; 
+            }
+            parsedRows.push(cells);
+          }
+        }
+
+        if (parsedRows.length === 0) return "";
+
+        if (hasHeader && parsedRows.length > 0) {
+          const headers = parsedRows[0];
+          html += "<thead class='bg-slate-900 border-b border-slate-800 text-violet-300 font-bold'><tr>";
+          headers.forEach(h => {
+            html += `<th class='p-2 font-semibold'>${h}</th>`;
+          });
+          html += "</tr></thead>";
+          
+          html += "<tbody class='divide-y divide-slate-850/60'>";
+          for (let r = 1; r < parsedRows.length; r++) {
+            html += "<tr class='hover:bg-slate-900/20 transition-colors'>";
+            parsedRows[r].forEach(cell => {
+              html += `<td class='p-2 text-slate-300'>${cell}</td>`;
+            });
+            html += "</tr>";
+          }
+          html += "</tbody>";
+        } else {
+          html += "<tbody class='divide-y divide-slate-850/60'>";
+          parsedRows.forEach(row => {
+            html += "<tr class='hover:bg-slate-900/20 transition-colors'>";
+            row.forEach(cell => {
+              html += `<td class='p-2 text-slate-300'>${cell}</td>`;
+            });
+            html += "</tr>";
+          });
+          html += "</tbody>";
+        }
+
+        html += "</table></div>";
+        return html;
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+        // 1. Horizontal Rules
+        if (line === "---" || line === "___" || line === "***" || line === "--- ") {
+          if (inTable) { htmlLines.push(renderTable(tableRows)); inTable = false; tableRows = []; }
+          if (inList) { htmlLines.push("</ul>"); inList = false; }
+          htmlLines.push("<hr class='border-slate-800/80 my-2.5'>");
+          continue;
+        }
+
+        // 2. Headers (since we escaped '#', matching direct markdown lines)
+        const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+        if (headerMatch) {
+          if (inTable) { htmlLines.push(renderTable(tableRows)); inTable = false; tableRows = []; }
+          if (inList) { htmlLines.push("</ul>"); inList = false; }
+          const depth = headerMatch[1].length;
+          const content = headerMatch[2];
+          const fontSize = depth === 1 ? "text-base" : depth === 2 ? "text-sm" : "text-xs";
+          htmlLines.push(`<div class="${fontSize} font-bold text-violet-300 font-sans tracking-tight mt-2.5 mb-1">${content}</div>`);
+          continue;
+        }
+
+        // 3. Blockquotes (since we escaped > into &gt;)
+        const quoteMatch = line.match(/^&gt;\s*(.+)$/);
+        if (quoteMatch) {
+          if (inTable) { htmlLines.push(renderTable(tableRows)); inTable = false; tableRows = []; }
+          if (inList) { htmlLines.push("</ul>"); inList = false; }
+          htmlLines.push(`<div class="pl-3 py-1 my-1 border-l-2 border-violet-500 bg-slate-950/40 text-slate-300 italic">${quoteMatch[1]}</div>`);
+          continue;
+        }
+
+        // 4. Tables (lines starting and ending with | or containing multiple |)
+        const isTableRow = line.startsWith("|") && line.endsWith("|");
+        if (isTableRow) {
+          if (inList) { htmlLines.push("</ul>"); inList = false; }
+          inTable = true;
+          tableRows.push(line);
+          continue;
+        } else {
+          if (inTable) {
+            htmlLines.push(renderTable(tableRows));
+            inTable = false;
+            tableRows = [];
+          }
+        }
+
+        // 5. Lists (lines starting with - or * or bullet points)
+        const listMatch = line.match(/^[-*•]\s+(.+)$/);
+        if (listMatch) {
+          if (!inList) {
+            htmlLines.push("<ul class='space-y-1 my-1.5'>");
+            inList = true;
+          }
+          htmlLines.push(`<li class='pl-1.5 py-0.5 text-slate-300 flex items-start gap-1.5'><span>•</span><span>${listMatch[1]}</span></li>`);
+          continue;
+        } else {
+          if (inList && !line) {
+            htmlLines.push("</ul>");
+            inList = false;
+          }
+        }
+
+        // 6. Normal lines
+        if (line === "") {
+          htmlLines.push("<div class='h-1.5'></div>");
+        } else {
+          htmlLines.push(`<div class='leading-relaxed text-slate-300'>${line}</div>`);
+        }
+      }
+
+      if (inTable) { htmlLines.push(renderTable(tableRows)); }
+      if (inList) { htmlLines.push("</ul>"); }
+
+      return htmlLines.join("\n");
+    };
 
     logBox.innerHTML = "";
     this.chatMessages.forEach(msg => {
@@ -728,17 +995,17 @@ export class AppOrchestrator {
         bubble.className = "flex items-start gap-2.5 max-w-[85%] self-start text-xs p-3 rounded-xl bg-slate-900 border border-slate-850/60 text-slate-300 leading-relaxed mb-3";
         bubble.innerHTML = `
           <span class="text-sm self-start">🦉</span>
-          <div>
-            <span class="text-[10px] font-mono font-bold text-violet-400 block mb-1">Companion Adler (Tutor)</span>
-            <p>${msg.content}</p>
+          <div class="w-full overflow-hidden">
+            <span class="text-[10px] font-mono font-bold text-violet-400 block mb-1">Companion Maaz (Tutor)</span>
+            <div class="space-y-1 w-full">${parseMarkdown(msg.content)}</div>
           </div>
         `;
       } else {
         bubble.className = "flex flex-col items-end gap-1.5 max-w-[80%] self-end text-xs p-3 rounded-xl bg-violet-950/20 border border-violet-800/20 text-violet-200 leading-relaxed mb-3 font-mono";
         bubble.innerHTML = `
-          <div>
+          <div class="w-full">
             <span class="text-[10px] text-slate-400 font-bold block mb-1 text-right">You (${this.profile.name})</span>
-            <p>${msg.content}</p>
+            <div class="space-y-1 w-full">${parseMarkdown(msg.content)}</div>
           </div>
         `;
       }
@@ -810,8 +1077,8 @@ export class AppOrchestrator {
       const added = this.dictionary.addWord(newWord);
       if (added) {
         this.displayBannerNotification(`📖 Forged Spell: "${german}" successfully learned!`);
-        // Trigger Sheets async write sync background if GAS URL configured
-        if (this.dictionary.getAppsScriptUrl()) {
+        // Trigger Sheets async write sync in background if GAS URL or Google OAuth is active
+        if (localStorage.getItem("gq_google_access_token") || this.dictionary.getAppsScriptUrl()) {
           this.dictionary.syncWithGoogleSheets();
         }
       } else {
@@ -900,7 +1167,7 @@ export class AppOrchestrator {
       const logBox = document.getElementById("ai-chat-logs");
       const loadingBubble = document.createElement("div");
       loadingBubble.className = "flex items-start gap-2.5 max-w-[85%] self-start text-xs p-3 rounded-xl bg-slate-900 border border-slate-800 text-indigo-350 italic animate-pulse mb-3";
-      loadingBubble.innerHTML = `🦉 <span>Owl Adler is whispering spells... Please wait...</span>`;
+      loadingBubble.innerHTML = `🦉 <span>Owl Maaz is whispering spells... Please wait...</span>`;
       logBox?.appendChild(loadingBubble);
       logBox!.scrollTop = logBox!.scrollHeight;
 
@@ -926,6 +1193,8 @@ export class AppOrchestrator {
 
         if (data.text) {
           this.chatMessages.push({ role: "assistant", content: data.text });
+        } else if (data.error) {
+          this.chatMessages.push({ role: "assistant", content: `Forgive me, adventurer, my owl scroll magic encountered an issue: "${data.error}"` });
         } else {
           this.chatMessages.push({ role: "assistant", content: "Forgive me, adventurer, my owl scroll magic has expired or the API endpoint is loaded. Try asking another question!" });
         }
@@ -933,7 +1202,7 @@ export class AppOrchestrator {
 
       } catch (err) {
         loadingBubble.remove();
-        this.chatMessages.push({ role: "assistant", content: "Apologies! Adler couldn't decipher that spell. The offline companion is active. Ensure your server endpoints are running without constraints." });
+        this.chatMessages.push({ role: "assistant", content: "Apologies! Maaz couldn't decipher that spell. The offline companion is active. Ensure your server endpoints are running without constraints." });
         this.renderAIChatMemory();
       }
     };
@@ -974,7 +1243,7 @@ export class AppOrchestrator {
         });
         const data = await response.json();
         if (bubble) {
-          bubble.innerHTML = `🌟 Adler Tip for memorizing <b>"${targetWord}"</b>:<br><q class="text-[10px] text-violet-300 leading-relaxed italic mt-1 font-mono">"${data.tip || 'Practice spelling!'}"</q>`;
+          bubble.innerHTML = `🌟 Maaz Tip for memorizing <b>"${targetWord}"</b>:<br><q class="text-[10px] text-violet-300 leading-relaxed italic mt-1 font-mono">"${data.tip || 'Practice spelling!'}"</q>`;
         }
       } catch (e) {
         if (bubble) {
@@ -989,6 +1258,11 @@ export class AppOrchestrator {
         { role: "assistant", content: "Grüezi! My memory lists are cleared. What would you like to target today?" }
       ];
       this.renderAIChatMemory();
+    });
+
+    // Manual Refresh of Smart Recommendations listener
+    document.getElementById("refresh-ai-recomm")?.addEventListener("click", () => {
+      this.fetchSmartAIRecommendations(true);
     });
   }
 
@@ -1005,6 +1279,17 @@ export class AppOrchestrator {
     this.dictionary.saveToCache();
     this.saveProfile();
 
+    const hasGoogleToken = !!localStorage.getItem("gq_google_access_token");
+    const hasAppsScriptUrl = !!this.dictionary.getAppsScriptUrl();
+    let googleSyncSuccess = false;
+    let googleSyncMsg = "";
+
+    if (hasGoogleToken || hasAppsScriptUrl) {
+      const result = await this.dictionary.syncWithGoogleSheets();
+      googleSyncSuccess = result.success;
+      googleSyncMsg = result.message || "";
+    }
+
     const isRealUser = this.profile.email && this.profile.email !== "notconnect@domain.com" && this.profile.email !== "guest@domain.com";
     if (isRealUser) {
       try {
@@ -1014,27 +1299,42 @@ export class AppOrchestrator {
           body: JSON.stringify({
             email: this.profile.email,
             profile: this.profile,
-            words: this.dictionary.getWords()
+            words: this.dictionary.getWords(),
+            history: this.analytics.getHistory()
           })
         });
         const data = await response.json();
         if (response.ok && data.success) {
-          this.displayBannerNotification(`🔄 Guild server backup successful! Levels, gold, and ${this.dictionary.getWords().length} words saved.`, "emerald");
+          if (hasGoogleToken || hasAppsScriptUrl) {
+            if (googleSyncSuccess) {
+              this.displayBannerNotification(`🔄 Sheets & Guild backup successful! ${googleSyncMsg}`, "emerald");
+            } else {
+              this.displayBannerNotification(`⚠️ Guild backup saved, Sheets Sync failed: ${googleSyncMsg}`);
+            }
+          } else {
+            this.displayBannerNotification(`🔄 Guild server backup successful! Levels, gold, and ${this.dictionary.getWords().length} words saved.`, "emerald");
+          }
         } else {
           throw new Error(data.error || "Guild server sync offline");
         }
       } catch (err: any) {
         console.error(err);
-        this.displayBannerNotification(`💾 Offline backup secured! Local browser progress is safe.`, "emerald");
+        if (hasGoogleToken || hasAppsScriptUrl) {
+          if (googleSyncSuccess) {
+            this.displayBannerNotification(`🔄 Sheets synchronized successfully! Guild backup offline: ${googleSyncMsg}`, "emerald");
+          } else {
+            this.displayBannerNotification(`💾 Local backup secured! Progress saved to browser. Sheets failed: ${googleSyncMsg}`);
+          }
+        } else {
+          this.displayBannerNotification(`💾 Offline backup secured! Local browser progress is safe.`, "emerald");
+        }
       }
     } else {
-      const hasToken = !!localStorage.getItem("gq_google_access_token");
-      if (hasToken) {
-        const result = await this.dictionary.syncWithGoogleSheets();
-        if (result.success) {
-          this.displayBannerNotification(`🔄 ${result.message || 'Sheets successfully updated!'}`);
+      if (hasGoogleToken || hasAppsScriptUrl) {
+        if (googleSyncSuccess) {
+          this.displayBannerNotification(`🔄 Sheets successfully updated! ${googleSyncMsg}`, "emerald");
         } else {
-          this.displayBannerNotification(`💾 Local backup secured! Progress saved to browser.`, "emerald");
+          this.displayBannerNotification(`⚠️ Google Sheets Sync failed: ${googleSyncMsg}`);
         }
       } else {
         // Fast, offline-first feedback loop
@@ -1222,6 +1522,8 @@ export class AppOrchestrator {
           this.saveProfile();
           localStorage.removeItem("gq_google_access_token");
           localStorage.removeItem("gq_vocab_cache");
+          localStorage.removeItem("gq_quiz_history");
+          this.analytics.loadHistory();
           this.dictionary.setWords([
             { german: "der Drache", english: "the dragon", category: "Adventure", difficulty: "Medium", isFavorite: true, accuracyCount: 0, errorCount: 0 },
             { german: "die Burg", english: "the castle", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
@@ -1407,6 +1709,11 @@ export class AppOrchestrator {
             this.dictionary.setWords(data.user.words);
           }
 
+          if (data.user.history) {
+            localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history));
+            this.analytics.loadHistory();
+          }
+
           this.displayBannerNotification(`🔑 Credentials Verified! Welcome back to German Quest, ${this.profile.name}!`, "emerald");
 
           authModal.classList.add("hidden");
@@ -1463,6 +1770,11 @@ export class AppOrchestrator {
 
           if (data.user.words) {
             this.dictionary.setWords(data.user.words);
+          }
+
+          if (data.user.history) {
+            localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history));
+            this.analytics.loadHistory();
           }
 
           this.displayBannerNotification(`🔑 Welcome back, ${this.profile.name}! Your progress has been loaded.`, "emerald");

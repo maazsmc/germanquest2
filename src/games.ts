@@ -439,7 +439,7 @@ export class Games {
         }
       } catch (err) {
         if (aiHintBox) {
-          aiHintBox.innerHTML = `<span class="text-rose-400">Failed to connect to Adler's magical server.</span>`;
+          aiHintBox.innerHTML = `<span class="text-rose-400">Failed to connect to Maaz's magical server.</span>`;
         }
       }
     });
@@ -1017,7 +1017,7 @@ export class Games {
         <span class="text-6xl animate-float">👑</span>
         <h3 class="text-3xl font-display font-black text-amber-400 tracking-wider">BOSS VANQUISHED!</h3>
         <p class="text-slate-300 text-xs px-3 leading-relaxed">
-          Amazing! You successfully conquered the <b>Vocabulary Overlord Troll</b> using weak words knowledge and precise spell translations. Adler celebrates your majestic victory!
+          Amazing! You successfully conquered the <b>Vocabulary Overlord Troll</b> using weak words knowledge and precise spell translations. Maaz celebrates your majestic victory!
         </p>
 
         <div class="bg-indigo-950/30 border border-indigo-900/40 p-4 rounded-xl w-full flex justify-around text-center mt-2">

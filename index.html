@@ -36,7 +36,7 @@
           </nav>
           <!-- Authentication Triggers -->
           <div class="flex items-center gap-3">
-            <button class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 font-bold text-xs text-white shadow-md glow-purple cursor-pointer flex items-center gap-1.5 transition-all hover:scale-105 animate-pulse" id="landing-sim-btn">
+            <button class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 font-bold text-xs text-white shadow-md glow-purple cursor-pointer flex items-center gap-1.5 transition-all hover:scale-105" id="landing-sim-btn">
               <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-6.887 4.114-4.636 0-8.358-3.722-8.358-8.358s3.722-8.358 8.358-8.358c2.15 0 4.152.822 5.673 2.34l3.056-3.056C18.232 1.346 15.356 0 12.24 0 5.48 0 0 5.48 0 12.24s5.48 12.24 12.24 12.24c6.702 0 12.24-5.388 12.24-12.24 0-.776-.08-1.536-.208-2.28H12.24z"/>
               </svg>
@@ -147,7 +147,7 @@
               <div class="w-12 h-12 rounded-xl bg-violet-900/30 border border-violet-500/25 flex items-center justify-center text-xl">🧙‍♂️</div>
               <h4 class="font-display font-bold text-sm text-white mt-1">AI Citadel Owl Tutor</h4>
               <p class="text-xs text-slate-400 leading-relaxed">
-                Converse in real German with Companion Owl Adler! Ask questions, test slang sentences, and receive real-time lore explanations tailored to your vocabulary status.
+                Converse in real German with Companion Owl Maaz! Ask questions, test slang sentences, and receive real-time lore explanations tailored to your vocabulary status.
               </p>
             </div>
             <!-- Feature 3 -->
@@ -342,7 +342,7 @@
           <div class="flex items-start gap-3">
             <div class="w-10 h-10 rounded-full bg-violet-950 flex items-center justify-center text-xl shadow-inner border border-violet-500/30">🦉</div>
             <div>
-              <p class="text-xs font-semibold text-violet-300">Companion Adler</p>
+              <p class="text-xs font-semibold text-violet-300">Companion Maaz</p>
               <p class="text-[10px] text-slate-400 font-mono">AI Companion Owl</p>
             </div>
           </div>
@@ -381,7 +381,86 @@
             </div>
 
             <!-- Dashboard Mascot -->
-            <div class="text-6xl p-5 bg-slate-900/90 rounded-2xl border border-violet-500/20 shadow-xl animate-float">🏰</div>
+            <div class="w-24 h-24 p-2 bg-gradient-to-br from-slate-900 to-violet-950 rounded-2xl border border-violet-500/30 shadow-2xl animate-float flex items-center justify-center relative group">
+              <div class="absolute inset-0 bg-violet-500/10 rounded-2xl blur-lg group-hover:bg-violet-500/20 transition-all duration-300"></div>
+              <svg class="w-full h-full relative z-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Definitions for gradients -->
+                <defs>
+                  <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#e2e8f0" />
+                    <stop offset="50%" stop-color="#94a3b8" />
+                    <stop offset="100%" stop-color="#475569" />
+                  </linearGradient>
+                  <linearGradient id="hiltGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#fbbf24" />
+                    <stop offset="100%" stop-color="#b45309" />
+                  </linearGradient>
+                  <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#6d28d9" />
+                    <stop offset="50%" stop-color="#4c1d95" />
+                    <stop offset="100%" stop-color="#1e1b4b" />
+                  </linearGradient>
+                  <linearGradient id="trimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#a78bfa" />
+                    <stop offset="100%" stop-color="#4c1d95" />
+                  </linearGradient>
+                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+                
+                <!-- Crossed Sword 1 (Left to Right) -->
+                <g transform="rotate(45 50 50)">
+                  <!-- Blade -->
+                  <path d="M48 15 L52 15 L52 75 L48 75 Z" fill="url(#bladeGrad)" />
+                  <!-- Central line of blade -->
+                  <path d="M50 15 L50 75" stroke="#cbd5e1" stroke-width="0.5" />
+                  <!-- Guard -->
+                  <path d="M42 75 L58 75 L58 79 L42 79 Z" fill="url(#hiltGrad)" rx="1" />
+                  <!-- Hilt / Grip -->
+                  <path d="M47 79 L53 79 L53 90 L47 90 Z" fill="#7c2d12" />
+                  <!-- Pommel -->
+                  <circle cx="50" cy="92" r="3" fill="url(#hiltGrad)" />
+                </g>
+            
+                <!-- Crossed Sword 2 (Right to Left) -->
+                <g transform="rotate(-45 50 50)">
+                  <!-- Blade -->
+                  <path d="M48 15 L52 15 L52 75 L48 75 Z" fill="url(#bladeGrad)" />
+                  <!-- Central line of blade -->
+                  <path d="M50 15 L50 75" stroke="#cbd5e1" stroke-width="0.5" />
+                  <!-- Guard -->
+                  <path d="M42 75 L58 75 L58 79 L42 79 Z" fill="url(#hiltGrad)" rx="1" />
+                  <!-- Hilt / Grip -->
+                  <path d="M47 79 L53 79 L53 90 L47 90 Z" fill="#7c2d12" />
+                  <!-- Pommel -->
+                  <circle cx="50" cy="92" r="3" fill="url(#hiltGrad)" />
+                </g>
+                
+                <!-- Shield Background Glow -->
+                <circle cx="50" cy="48" r="24" fill="#a78bfa" opacity="0.15" filter="url(#glow)" />
+            
+                <!-- Shield Body -->
+                <path d="M28 32 C28 32, 50 24, 50 24 C50 24, 72 32, 72 32 C72 52, 50 72, 50 72 C50 72, 28 52, 28 32 Z" fill="url(#shieldGrad)" stroke="url(#trimGrad)" stroke-width="2.5" />
+                
+                <!-- Shield Inner Trim -->
+                <path d="M33 36 C33 36, 50 30, 50 30 C50 30, 67 36, 67 36 C67 50, 50 65, 50 65 C50 65, 33 50, 33 36 Z" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.5" />
+            
+                <!-- Central Magical Rune / Star -->
+                <g transform="translate(50, 46)">
+                  <!-- Star rays -->
+                  <path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3 Z" fill="#fbbf24" filter="url(#glow)" />
+                  <!-- Core -->
+                  <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+                </g>
+            
+                <!-- Tiny sparkle points -->
+                <circle cx="28" cy="24" r="1.5" fill="#38bdf8" filter="url(#glow)" />
+                <circle cx="72" cy="24" r="1.5" fill="#38bdf8" filter="url(#glow)" />
+                <circle cx="50" cy="78" r="1" fill="#c084fc" filter="url(#glow)" />
+              </svg>
+            </div>
           </div>
 
           <!-- Grid Dashboard Columns -->
@@ -450,7 +529,7 @@
                 </h3>
                 <button class="text-[10px] font-mono text-blue-400 hover:text-blue-300" id="refresh-ai-recomm">Regen AI ✨</button>
               </div>
-              <p class="text-xs text-slate-400">Adler's direct recommendation for your current experience questline:</p>
+              <p class="text-xs text-slate-400">Maaz's direct recommendation for your current experience questline:</p>
 
               <!-- Dynamic Recommended Words -->
               <div class="flex-1 flex flex-col gap-2.5" id="dashboard-recomm-container">
@@ -730,7 +809,7 @@
               <div class="flex items-center gap-3">
                 <span class="text-3xl">🧙‍♂️</span>
                 <div>
-                  <h2 class="text-base font-display font-bold text-slate-100">Adler, AI Quest Master</h2>
+                  <h2 class="text-base font-display font-bold text-slate-100">Maaz, AI Quest Master</h2>
                   <p class="text-xs text-slate-400">Ask questions, request examples, or practice dialogue in real-time.</p>
                 </div>
               </div>

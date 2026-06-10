@@ -12,7 +12,7 @@ export class Analytics {
     this.loadHistory();
   }
 
-  private loadHistory() {
+  public loadHistory() {
     const cached = localStorage.getItem("gq_quiz_history");
     if (cached) {
       try {
@@ -21,22 +21,36 @@ export class Analytics {
         this.history = [];
       }
     } else {
-      // Seed some starting historical points to make dashboard charts look incredible from the start!
-      const today = new Date();
-      const formatOffset = (days: number) => {
-        const d = new Date();
-        d.setDate(today.getDate() - days);
-        return d.toISOString().split("T")[0];
-      };
-      
-      this.history = [
-        { date: formatOffset(5), score: 60, totalQuestions: 10, gameMode: "quiz" },
-        { date: formatOffset(4), score: 80, totalQuestions: 10, gameMode: "typing" },
-        { date: formatOffset(3), score: 70, totalQuestions: 10, gameMode: "matching" },
-        { date: formatOffset(2), score: 90, totalQuestions: 10, gameMode: "quiz" },
-        { date: formatOffset(1), score: 100, totalQuestions: 10, gameMode: "boss" }
-      ];
-      this.saveHistory();
+      // Check if logged in first
+      let isRealUser = false;
+      const cachedProfile = localStorage.getItem("gq_user_profile");
+      if (cachedProfile) {
+        try {
+          const profile = JSON.parse(cachedProfile);
+          isRealUser = profile.email && profile.email !== "notconnect@domain.com" && profile.email !== "guest@domain.com";
+        } catch (e) {}
+      }
+
+      if (isRealUser) {
+        this.history = [];
+      } else {
+        // Seed some starting historical points to make dashboard charts look incredible from the start!
+        const today = new Date();
+        const formatOffset = (days: number) => {
+          const d = new Date();
+          d.setDate(today.getDate() - days);
+          return d.toISOString().split("T")[0];
+        };
+        
+        this.history = [
+          { date: formatOffset(5), score: 60, totalQuestions: 10, gameMode: "quiz" },
+          { date: formatOffset(4), score: 80, totalQuestions: 10, gameMode: "typing" },
+          { date: formatOffset(3), score: 70, totalQuestions: 10, gameMode: "matching" },
+          { date: formatOffset(2), score: 90, totalQuestions: 10, gameMode: "quiz" },
+          { date: formatOffset(1), score: 100, totalQuestions: 10, gameMode: "boss" }
+        ];
+        this.saveHistory();
+      }
     }
   }
 
