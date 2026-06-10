@@ -14,11 +14,26 @@ const PORT = 3000;
 app.use(express.json());
 
 // Public Privacy Policy routes for Google OAuth verification compliance
+const sendPrivacyFile = (res: express.Response) => {
+  const paths = [
+    path.join(process.cwd(), "privacy.html"),
+    path.join(process.cwd(), "public", "privacy.html"),
+    path.join(process.cwd(), "dist", "privacy.html")
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      res.sendFile(p);
+      return;
+    }
+  }
+  res.status(404).send("Privacy policy file not found.");
+};
+
 app.get("/privacy", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "privacy.html"));
+  sendPrivacyFile(res);
 });
 app.get("/privacy.html", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "privacy.html"));
+  sendPrivacyFile(res);
 });
 
 // -------------------------------------------------------------
