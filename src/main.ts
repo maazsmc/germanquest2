@@ -1199,8 +1199,11 @@ export class AppOrchestrator {
 
     if (loginBtn) {
       loginBtn.addEventListener("click", () => {
-        // If logged in under a custom profile, log them out and reset to default guest status
-        if (this.profile.email && this.profile.email !== "notconnect@domain.com") {
+        const hasGoogleToken = !!localStorage.getItem("gq_google_access_token");
+        const hasCustomEmail = this.profile.email && this.profile.email !== "notconnect@domain.com";
+
+        // If logged in under a custom profile or Google, log them out and reset to default guest status
+        if (hasGoogleToken || hasCustomEmail) {
           // Reset profile to default
           this.profile = {
             level: 1,
@@ -1217,6 +1220,7 @@ export class AppOrchestrator {
             lastPracticeDate: ""
           };
           this.saveProfile();
+          localStorage.removeItem("gq_google_access_token");
           localStorage.removeItem("gq_vocab_cache");
           this.dictionary.setWords([
             { german: "der Drache", english: "the dragon", category: "Adventure", difficulty: "Medium", isFavorite: true, accuracyCount: 0, errorCount: 0 },
