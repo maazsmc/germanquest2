@@ -285,6 +285,67 @@ app.post("/api/auth/signup", (req, res) => {
   res.status(400).json({ error: "This signup method is disabled. Please request dynamic OTP verification codes instead." });
 });
 
+// GOOGLE SSO / DIRECT SIGN-IN OR REGISTRATION OVERRIDE
+app.post("/api/auth/google-sso", (req, res) => {
+  try {
+    const { email, name, avatar } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email address is required for SSO validation." });
+    }
+    
+    const emailKey = email.toLowerCase().trim();
+    const db = readUsersDB();
+    
+    // If the account does not exist, provision it starting completely from zero (scratch)
+    if (!db[emailKey]) {
+      db[emailKey] = {
+        email: emailKey,
+        password: "", // SSO authenticated
+        name: name || "Google Adventurer",
+        avatar: avatar || "🛡️",
+        customTag: "Cavalier",
+        profile: {
+          level: 1,
+          xp: 0,
+          xpNeeded: 100,
+          streak: 0,
+          coins: 0,
+          favoriteCategories: ["Basics", "Adventure"],
+          weakWords: [],
+          achievements: [],
+          name: name || "Google Adventurer",
+          email: emailKey,
+          avatar: avatar || "🛡️",
+          customTag: "Cavalier",
+          lastPracticeDate: ""
+        },
+        words: [],
+        history: []
+      };
+      writeUsersDB(db);
+    }
+    
+    const user = db[emailKey];
+    res.json({
+      success: true,
+      message: "SSO successfully resolved!",
+      user: {
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        customTag: user.customTag,
+        profile: user.profile,
+        words: user.words || [],
+        history: user.history || []
+      }
+    });
+  } catch (error: any) {
+    console.error("SSO route error:", error);
+    res.status(500).json({ error: "SSO verification failed: " + error.message });
+  }
+});
+
 // LOGIN / SIGN IN HERO WITH EMAIL & PASSWORD
 app.post("/api/auth/signin", (req, res) => {
   try {

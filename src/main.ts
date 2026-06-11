@@ -1411,13 +1411,43 @@ export class AppOrchestrator {
               });
               if (userInfoRes.ok) {
                 const googleUser = await userInfoRes.json();
-                this.profile.name = googleUser.name || "Google Adventurer";
-                this.profile.email = googleUser.email || "adventurer@gmail.com";
-                this.profile.avatar = googleUser.picture || "🛡️";
+                
+                // Match or provision isolated user details on the main database backend
+                const ssoRes = await fetch("/api/auth/google-sso", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email: googleUser.email,
+                    name: googleUser.name,
+                    avatar: googleUser.picture
+                  })
+                });
+                
+                if (!ssoRes.ok) {
+                  throw new Error("Failed to register/authenticate Google SSO on the Quest backend.");
+                }
+                
+                const ssoData = await ssoRes.json();
+                
+                // Set the profile values exactly loaded from their account (clean 100% 0-based if new!)
+                this.profile = ssoData.user.profile;
+                this.profile.name = ssoData.user.name;
+                this.profile.email = ssoData.user.email;
+                this.profile.avatar = ssoData.user.avatar;
+                this.profile.customTag = ssoData.user.customTag;
                 this.saveProfile();
                 
-                this.rewardExperience(20, 10);
-                this.displayBannerNotification(`🔑 Google Sheets synchronized for ${this.profile.name}!`, "emerald");
+                // Set the vocabulary exactly loaded from their account (empty [] if new!)
+                this.dictionary.setWords(ssoData.user.words || []);
+                
+                // Clear any deleted words tracked under prior guest or other sessions
+                localStorage.removeItem("gq_deleted_words");
+                
+                // Set the daily activity history exactly loaded from their account (empty [] if new!)
+                localStorage.setItem("gq_quiz_history", JSON.stringify(ssoData.user.history || []));
+                this.analytics.loadHistory();
+                
+                this.displayBannerNotification(`🔑 Welcome to German Quest, ${this.profile.name}! Your account is safe and isolated.`, "emerald");
                 
                 // Hide modal if open
                 const authModal = document.getElementById("auth-modal");
@@ -1719,6 +1749,9 @@ export class AppOrchestrator {
           // Set vocabulary list to the server's list (empty [] for new signups)
           this.dictionary.setWords(data.user.words || []);
 
+          // Clear any deleted words tracked under prior sessions
+          localStorage.removeItem("gq_deleted_words");
+
           // Set history to the server's list (empty [] for new signups)
           localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history || []));
           this.analytics.loadHistory();
@@ -1777,14 +1810,13 @@ export class AppOrchestrator {
           this.profile.customTag = data.user.customTag;
           this.saveProfile();
 
-          if (data.user.words) {
-            this.dictionary.setWords(data.user.words);
-          }
+          this.dictionary.setWords(data.user.words || []);
 
-          if (data.user.history) {
-            localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history));
-            this.analytics.loadHistory();
-          }
+          // Clear any deleted words tracked under prior sessions
+          localStorage.removeItem("gq_deleted_words");
+
+          localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history || []));
+          this.analytics.loadHistory();
 
           this.displayBannerNotification(`🔑 Welcome back, ${this.profile.name}! Your progress has been loaded.`, "emerald");
 
