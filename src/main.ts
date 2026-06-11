@@ -127,6 +127,12 @@ export class AppOrchestrator {
 
   private saveProfile() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(this.profile));
+    if (this.profile.email && this.profile.email !== "notconnect@domain.com" && this.profile.email !== "guest@domain.com") {
+      const emailLower = this.profile.email.toLowerCase().trim();
+      localStorage.setItem(`gq_profile_${emailLower}`, JSON.stringify(this.profile));
+      localStorage.setItem(`gq_vocab_${emailLower}`, JSON.stringify(this.dictionary.getWords()));
+      localStorage.setItem(`gq_history_${emailLower}`, JSON.stringify(this.analytics.getHistory()));
+    }
   }
 
   // Daily Streak Management logic
@@ -1413,41 +1419,119 @@ export class AppOrchestrator {
                 const googleUser = await userInfoRes.json();
                 
                 // Match or provision isolated user details on the main database backend
-                const ssoRes = await fetch("/api/auth/google-sso", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    email: googleUser.email,
-                    name: googleUser.name,
-                    avatar: googleUser.picture
-                  })
-                });
+                let ssoResOk = false;
+                let ssoData: any = null;
                 
-                if (!ssoRes.ok) {
-                  throw new Error("Failed to register/authenticate Google SSO on the Quest backend.");
+                try {
+                  const ssoRes = await fetch("/api/auth/google-sso", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      email: googleUser.email,
+                      name: googleUser.name,
+                      avatar: googleUser.picture
+                    })
+                  });
+                  if (ssoRes.ok) {
+                    ssoData = await ssoRes.json();
+                    ssoResOk = true;
+                  }
+                } catch (ssoErr) {
+                  console.warn("Backend API server offline.");
                 }
                 
-                const ssoData = await ssoRes.json();
-                
-                // Set the profile values exactly loaded from their account (clean 100% 0-based if new!)
-                this.profile = ssoData.user.profile;
-                this.profile.name = ssoData.user.name;
-                this.profile.email = ssoData.user.email;
-                this.profile.avatar = ssoData.user.avatar;
-                this.profile.customTag = ssoData.user.customTag;
-                this.saveProfile();
-                
-                // Set the vocabulary exactly loaded from their account (empty [] if new!)
-                this.dictionary.setWords(ssoData.user.words || []);
-                
-                // Clear any deleted words tracked under prior guest or other sessions
-                localStorage.removeItem("gq_deleted_words");
-                
-                // Set the daily activity history exactly loaded from their account (empty [] if new!)
-                localStorage.setItem("gq_quiz_history", JSON.stringify(ssoData.user.history || []));
-                this.analytics.loadHistory();
-                
-                this.displayBannerNotification(`🔑 Welcome to German Quest, ${this.profile.name}! Your account is safe and isolated.`, "emerald");
+                if (ssoResOk && ssoData) {
+                  // Set the profile values exactly loaded from their account (clean 100% 0-based if new!)
+                  this.profile = ssoData.user.profile;
+                  this.profile.name = ssoData.user.name;
+                  this.profile.email = ssoData.user.email;
+                  this.profile.avatar = ssoData.user.avatar;
+                  this.profile.customTag = ssoData.user.customTag;
+                  this.saveProfile();
+                  
+                  // Set the vocabulary exactly loaded from their account (empty [] if new!)
+                  this.dictionary.setWords(ssoData.user.words || []);
+                  
+                  // Clear any deleted words tracked under prior guest or other sessions
+                  localStorage.removeItem("gq_deleted_words");
+                  
+                  // Set the daily activity history exactly loaded from their account (empty [] if new!)
+                  localStorage.setItem("gq_quiz_history", JSON.stringify(ssoData.user.history || []));
+                  this.analytics.loadHistory();
+                  
+                  this.displayBannerNotification(`🔑 Welcome to German Quest, ${this.profile.name}! Your account is safe and isolated.`, "emerald");
+                } else {
+                  // Frontend-only client-side session fallback (for static hosting environments like Vercel with no custom API)
+                  const emailLower = googleUser.email.toLowerCase().trim();
+                  const existingCachedProfile = localStorage.getItem(`gq_profile_${emailLower}`);
+                  let matched = false;
+                  
+                  if (existingCachedProfile) {
+                    try {
+                      const parsed = JSON.parse(existingCachedProfile);
+                      if (parsed && parsed.email === googleUser.email) {
+                        this.profile = parsed;
+                        matched = true;
+                      }
+                    } catch (e) {}
+                  }
+                  
+                  if (matched) {
+                    // Load their local isolated vocabulary list for this email
+                    const cachedVocab = localStorage.getItem(`gq_vocab_${emailLower}`);
+                    if (cachedVocab) {
+                      try {
+                        this.dictionary.setWords(JSON.parse(cachedVocab));
+                      } catch (e) {
+                        this.dictionary.setWords([]);
+                      }
+                    } else {
+                      this.dictionary.setWords([]);
+                    }
+                    
+                    // Load their local isolated activity history for this email
+                    const cachedHistory = localStorage.getItem(`gq_history_${emailLower}`);
+                    if (cachedHistory) {
+                      try {
+                        localStorage.setItem("gq_quiz_history", cachedHistory);
+                        this.analytics.loadHistory();
+                      } catch (e) {
+                        localStorage.setItem("gq_quiz_history", JSON.stringify([]));
+                        this.analytics.loadHistory();
+                      }
+                    } else {
+                      localStorage.setItem("gq_quiz_history", JSON.stringify([]));
+                      this.analytics.loadHistory();
+                    }
+                  } else {
+                    // Start completely clean with zero stats and empty records
+                    this.profile = {
+                      level: 1,
+                      xp: 0,
+                      xpNeeded: 100,
+                      streak: 0,
+                      coins: 0,
+                      favoriteCategories: ["Basics", "Adventure"],
+                      weakWords: [],
+                      achievements: [],
+                      name: googleUser.name || "Google Adventurer",
+                      email: googleUser.email || "adventurer@gmail.com",
+                      avatar: googleUser.picture || "🛡️",
+                      customTag: "Adventurer",
+                      lastPracticeDate: ""
+                    };
+                    this.dictionary.setWords([]);
+                    localStorage.setItem("gq_quiz_history", JSON.stringify([]));
+                    this.analytics.loadHistory();
+                  }
+                  
+                  this.saveProfile();
+                  
+                  // Clear any deleted words tracked under prior sessions
+                  localStorage.removeItem("gq_deleted_words");
+                  
+                  this.displayBannerNotification(`🔑 Connected via Google OAuth! (Saved locally with isolated stats)`, "emerald");
+                }
                 
                 // Hide modal if open
                 const authModal = document.getElementById("auth-modal");
