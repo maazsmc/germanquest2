@@ -355,7 +355,7 @@ export class Games {
 
       <!-- Flippable Card Outer wrapper -->
       <div class="memory-card w-full h-56 cursor-pointer" id="flashcard-card-box">
-        <div class="memory-card-inner relative w-full h-full duration-500 transform-style-preserve-3d pointer-events-none">
+        <div class="memory-card-inner relative w-full h-full duration-500 transform-style-preserve-3d">
           
           <!-- Front of Card: German -->
           <div class="memory-card-front glass-panel rounded-2xl flex flex-col justify-center items-center p-6 text-center shadow-lg hover:border-blue-500/50 transition-colors border border-slate-800">
@@ -369,12 +369,6 @@ export class Games {
             <span class="text-xs text-violet-400 font-mono tracking-widest uppercase mb-1 leading-none">English Meaning</span>
             <h4 class="text-2xl font-display font-bold text-slate-100 py-1 capitalize">${qWord.english}</h4>
             <p class="text-[10px] text-slate-400 font-mono px-3 py-0.5 rounded bg-slate-900 border border-slate-800">Category: ${qWord.category}</p>
-            
-            <div id="ai-hint-box" class="mt-3 text-[10px] text-indigo-300 italic max-w-xs py-1.5 px-3 rounded bg-indigo-950/20 border border-indigo-900/10">
-              <button class="text-indigo-400 font-semibold hover:text-indigo-300 cursor-pointer" id="generate-ai-explanation">
-                View AI sentences & mnemonics ✨
-              </button>
-            </div>
           </div>
 
         </div>
@@ -403,44 +397,6 @@ export class Games {
         cardInner.style.transform = "rotateY(180deg)";
       } else {
         cardInner.style.transform = "rotateY(0deg)";
-      }
-    });
-
-    // AI Example request
-    const aiExplTrigger = wrapper.querySelector("#generate-ai-explanation") as HTMLButtonElement;
-    aiExplTrigger.addEventListener("click", async (e) => {
-      e.stopPropagation(); // Avoid reflipping card
-      const aiHintBox = wrapper.querySelector("#ai-hint-box") as HTMLElement;
-      if (aiHintBox) {
-        aiHintBox.innerHTML = `
-          <div class="flex items-center justify-center gap-2 py-1 select-none">
-            <span class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-indigo-400"></span>
-            <span>Summoning AI tip...</span>
-          </div>
-        `;
-      }
-
-      try {
-        const response = await fetch("/api/ai/sentence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ word: qWord.german, meaning: qWord.english })
-        });
-        const details = await response.json();
-        
-        if (aiHintBox) {
-          aiHintBox.style.maxHeight = "120px";
-          aiHintBox.style.overflowY = "auto";
-          aiHintBox.innerHTML = `
-            <p class="text-left font-mono font-medium text-slate-300">"<b>DE:</b> ${details.sentence || 'No sentence generated.'}"</p>
-            <p class="text-left text-slate-450 mt-0.5">"<b>EN:</b> ${details.translation || ''}"</p>
-            <p class="text-left text-violet-300 mt-1 pb-1 font-mono text-[9px] border-t border-slate-800/60 pt-1">💡 Mnemonic: ${details.tip || ''}</p>
-          `;
-        }
-      } catch (err) {
-        if (aiHintBox) {
-          aiHintBox.innerHTML = `<span class="text-rose-400">Failed to connect to Maaz's magical server.</span>`;
-        }
       }
     });
 

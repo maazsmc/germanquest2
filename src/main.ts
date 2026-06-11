@@ -1640,12 +1640,7 @@ export class AppOrchestrator {
                 customTag: chosenClass,
                 lastPracticeDate: ""
               },
-              words: this.dictionary.getWords().map(w => ({
-                ...w,
-                accuracyCount: 0,
-                errorCount: 0,
-                isFavorite: false
-              }))
+              words: []
             })
           });
 
@@ -1721,14 +1716,12 @@ export class AppOrchestrator {
           this.profile.customTag = data.user.customTag;
           this.saveProfile();
 
-          if (data.user.words && data.user.words.length > 0) {
-            this.dictionary.setWords(data.user.words);
-          }
+          // Set vocabulary list to the server's list (empty [] for new signups)
+          this.dictionary.setWords(data.user.words || []);
 
-          if (data.user.history) {
-            localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history));
-            this.analytics.loadHistory();
-          }
+          // Set history to the server's list (empty [] for new signups)
+          localStorage.setItem("gq_quiz_history", JSON.stringify(data.user.history || []));
+          this.analytics.loadHistory();
 
           this.displayBannerNotification(`🔑 Credentials Verified! Welcome back to German Quest, ${this.profile.name}!`, "emerald");
 
