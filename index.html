@@ -19,7 +19,7 @@
       <div class="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[140px] pointer-events-none"></div>
 
       <!-- Landing Navigation Header -->
-      <header class="border-b border-slate-900 bg-[#090b0e]/70 backdrop-blur px-4 py-4 sm:px-8 z-30 sticky top-0">
+      <header class="border-b border-slate-900 bg-[#090b0e]/70 backdrop-blur px-4 py-4 sm:px-8 z-30 sm:sticky sm:top-0">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
           <div class="flex items-center gap-3">
             <span class="text-3xl animate-float">🇩🇪</span>
@@ -137,9 +137,9 @@
             <!-- Feature 1 -->
             <div class="glass-panel p-6 rounded-2xl border border-slate-900/60 flex flex-col gap-3">
               <div class="w-12 h-12 rounded-xl bg-violet-900/30 border border-violet-500/25 flex items-center justify-center text-xl">⚔️</div>
-              <h4 class="font-display font-bold text-sm text-white mt-1">Four Training Arenas</h4>
+              <h4 class="font-display font-bold text-sm text-white mt-1">Six Training Arenas</h4>
               <p class="text-xs text-slate-400 leading-relaxed">
-                Unlock <b>Match Runes</b> (matching tiles), <b>Vocab Quest</b> (multiple choices), <b>Listening Spell</b> (audio triggers), and the legendary <b>Vocab Noun Boss battles</b> with dual feedback lines.
+                Unlock <b>Multiple Choice Quiz</b>, <b>Word Typing Duel</b>, <b>Dynamic Flashcards</b>, <b>Tile Memory Matching</b>, <b>Listening Challenge</b>, <b>Speaking Trial</b>, and the epic <b>Vocabulary Overlord</b> Boss Battle.
               </p>
             </div>
             <!-- Feature 2 -->
@@ -222,7 +222,7 @@
     <!-- CORE CHRONICLE APP (Visible when logged in) -->
     <div id="app-core-interface" class="hidden flex-col min-h-screen">
       <!-- Top HUD Navigation / Profiles -->
-      <header class="glass-panel sticky top-0 z-40 border-b border-slate-800/80 px-4 py-3 sm:px-6">
+      <header class="glass-panel sm:sticky sm:top-0 z-40 border-b border-slate-800/80 px-4 py-3 sm:px-6">
       <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         
         <!-- Logo & Title -->
@@ -234,7 +234,7 @@
             <h1 class="text-xl font-display font-medium bg-gradient-to-r from-violet-400 via-purple-300 to-blue-400 bg-clip-text text-transparent flex items-center gap-2">
               GERMAN QUEST
             </h1>
-            <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Vocabulary RPG Chronicle</p>
+            <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Gamified Vocabulary Quest</p>
           </div>
         </div>
 
@@ -470,7 +470,7 @@
             <div class="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-violet-500/10">
               <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
                 <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
-                  <span>📊</span> STATS CHRONICLE
+                  <span>📊</span> QUEST STATISTICS
                 </h3>
                 <span class="text-[10px] font-mono text-violet-400">Accurate Stats</span>
               </div>
@@ -509,7 +509,7 @@
             <div class="glass-panel rounded-2xl p-5 flex flex-col gap-3 border border-red-500/10">
               <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
                 <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
-                  <span>💀</span> INSIDER WEAK WORDS
+                  <span>💀</span> TROUBLE WORDS
                 </h3>
                 <span class="text-[9px] px-2 py-0.5 rounded bg-red-950 text-red-400 font-mono">Needs Training</span>
               </div>
@@ -525,7 +525,7 @@
             <div class="glass-panel rounded-2xl p-5 flex flex-col gap-3 border border-blue-500/10">
               <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
                 <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
-                  <span>🧙‍♂️</span> SMART RECOMMS
+                  <span>🧙‍♂️</span> AI RECOMMENDATIONS
                 </h3>
                 <button class="text-[10px] font-mono text-blue-400 hover:text-blue-300" id="refresh-ai-recomm">Regen AI ✨</button>
               </div>

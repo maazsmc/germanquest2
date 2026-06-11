@@ -617,7 +617,7 @@ German uses four cases to indicate the role of a noun, pronoun, or adjective in 
   // 5. RPG Stats help
   if (query.includes("stat") || query.includes("level") || query.includes("xp") || query.includes("coin") || query.includes("streak") || query.includes("progress")) {
     const lvl = userProfile?.level || 1;
-    const coins = userProfile?.coins || 150;
+    const coins = userProfile?.coins || 0;
     const streak = userProfile?.streak || 0;
     return `**Your Study Progress Profile**
 

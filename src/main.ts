@@ -26,13 +26,13 @@ interface UserProfile {
 // Default layout profile
 const DEFAULT_PROFILE: UserProfile = {
   level: 1,
-  xp: 120,
-  xpNeeded: 300,
+  xp: 0,
+  xpNeeded: 100,
   streak: 0,
-  coins: 150,
+  coins: 0,
   favoriteCategories: ["Basics", "Adventure"],
   weakWords: [],
-  achievements: ["recruit"],
+  achievements: [],
   name: "Guest Adventurer",
   email: "notconnect@domain.com",
   avatar: "🛡️",
@@ -649,9 +649,13 @@ export class AppOrchestrator {
       btn.addEventListener("click", (e) => {
         const rawIdx = btn.getAttribute("data-index") || "0";
         const realIndex = allWords.indexOf(filtered[parseInt(rawIdx)]);
-        if (confirm(`Are you sure you want to vaporize "${allWords[realIndex]?.german}" from the Quest Book?`)) {
+        if (realIndex >= 0 && realIndex < allWords.length) {
+          const wordToDelete = allWords[realIndex];
           this.dictionary.deleteWord(realIndex);
           this.renderAllViews();
+          if (wordToDelete) {
+            this.displayBannerNotification(`🗑️ Vaporized "${wordToDelete.german}" from the Quest Book!`, "blue");
+          }
         }
       });
     });
@@ -665,9 +669,19 @@ export class AppOrchestrator {
     shelf.innerHTML = "";
     STORE_ITEMS.forEach(item => {
       const alreadyOwned = this.profile.achievements.includes(`owned_${item.id}`);
+      const canAfford = this.profile.coins >= item.price;
       
       const card = document.createElement("div");
       card.className = "glass-panel rounded-2xl p-4 flex flex-col justify-between border border-slate-850 hover:border-amber-500/20 hover:-translate-y-0.5 transition-all";
+
+      let buttonClass = "";
+      if (alreadyOwned) {
+        buttonClass = "bg-slate-950 border border-slate-800 text-slate-600 cursor-not-allowed";
+      } else if (canAfford) {
+        buttonClass = "bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.25)] hover:shadow-[0_0_18px_rgba(245,158,11,0.45)] transform active:scale-95 transition-all duration-200 font-bold";
+      } else {
+        buttonClass = "bg-[#201c18] border border-amber-500/15 text-amber-500/50 hover:text-amber-400 hover:border-amber-500/30 cursor-pointer transition-all duration-200";
+      }
 
       card.innerHTML = `
         <div class="flex items-center gap-3">
@@ -684,11 +698,7 @@ export class AppOrchestrator {
           <span class="text-xs text-slate-400 flex items-center font-mono font-bold leading-none">
             <b class="text-amber-400 text-sm mr-1">🪙 ${item.price}</b> gold
           </span>
-          <button class="buy-item-btn px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase font-mono ${
-            alreadyOwned 
-              ? 'bg-slate-950 border border-slate-800 text-slate-500 hover:cursor-default' 
-              : 'bg-amber-550 hover:bg-amber-500 text-slate-950 cursor-pointer'
-          }" data-id="${item.id}" ${alreadyOwned ? 'disabled' : ''}>
+          <button class="buy-item-btn px-3 py-1.5 rounded-lg text-[10px] uppercase font-mono tracking-wider ${buttonClass}" data-id="${item.id}" ${alreadyOwned ? 'disabled' : ''}>
             ${alreadyOwned ? 'Purchased' : 'Forge Buy'}
           </button>
         </div>
@@ -1115,7 +1125,7 @@ export class AppOrchestrator {
         
         // Hearts checks for Boss battle
         if (mode === "boss" && this.dictionary.getWords().length < 4) {
-          alert("👹 High Danger! You must forge at least 4 unique vocab words inside your handbook before challenging the Boss Troll Overlord!");
+          alert("👹 High Danger! You must forge at least 4 unique words in your Quest Book before challenging the Vocabulary Overlord!");
           return;
         }
 
@@ -1128,13 +1138,13 @@ export class AppOrchestrator {
         // Open game playgrounds
         const gameActiveTitle = document.getElementById("game-active-title");
         if (gameActiveTitle) {
-          gameActiveTitle.innerText = mode === "quiz" ? "Spiritual Multi-Choice Arena" 
-                                    : mode === "typing" ? "Action Spelling Dojo" 
-                                    : mode === "flashcards" ? "Flashcards Remembrance Study" 
-                                    : mode === "listening" ? "Aural Listening Trials"
-                                    : mode === "speaking" ? "Pronunciation Vocal Trials"
-                                    : mode === "matching" ? "Tile Matching Battle"
-                                    : "Boss Battle Duel: Vocabulary Overlord Troll!";
+          gameActiveTitle.innerText = mode === "quiz" ? "Multiple Choice Quiz" 
+                                    : mode === "typing" ? "Word Typing Duel" 
+                                    : mode === "flashcards" ? "Dynamic Flashcards" 
+                                    : mode === "listening" ? "Listening Challenge"
+                                    : mode === "speaking" ? "Speaking Trial"
+                                    : mode === "matching" ? "Tile Memory Matching"
+                                    : "Vocabulary Overlord Boss Battle";
         }
 
         // Run game engine
@@ -1144,9 +1154,7 @@ export class AppOrchestrator {
 
     // Quit active practice
     document.getElementById("quit-game-btn")?.addEventListener("click", () => {
-      if (confirm("Are you sure you want to retreat to the Adventure Guild hall? Streak dates won't count.")) {
-        this.switchView("games");
-      }
+      this.switchView("games");
     });
 
     // 6. AI Interactive Chatbot Tutor trigger commands
@@ -1510,13 +1518,13 @@ export class AppOrchestrator {
           // Reset profile to default
           this.profile = {
             level: 1,
-            xp: 120,
-            xpNeeded: 300,
+            xp: 0,
+            xpNeeded: 100,
             streak: 0,
-            coins: 150,
+            coins: 0,
             favoriteCategories: ["Basics", "Adventure"],
             weakWords: [],
-            achievements: ["recruit"],
+            achievements: [],
             name: "Guest Adventurer",
             email: "notconnect@domain.com",
             avatar: "🛡️",
@@ -1619,20 +1627,25 @@ export class AppOrchestrator {
               customTag: chosenClass,
               profile: {
                 level: 1,
-                xp: 120,
-                xpNeeded: 300,
+                xp: 0,
+                xpNeeded: 100,
                 streak: 0,
-                coins: 150,
+                coins: 0,
                 favoriteCategories: ["Basics", "Adventure"],
                 weakWords: [],
-                achievements: ["recruit"],
+                achievements: [],
                 name: nameInput,
                 email: emailInput.toLowerCase().trim(),
                 avatar: chosenAvatar,
                 customTag: chosenClass,
                 lastPracticeDate: ""
               },
-              words: this.dictionary.getWords() // Pass initial word set
+              words: this.dictionary.getWords().map(w => ({
+                ...w,
+                accuracyCount: 0,
+                errorCount: 0,
+                isFavorite: false
+              }))
             })
           });
 
@@ -1863,11 +1876,37 @@ export class AppOrchestrator {
     
     // Quick starter guest login sequence
     btnQuickGuest?.addEventListener("click", () => {
-      this.profile.name = "Guest Adventurer";
-      this.profile.email = "guest@domain.com"; // sets email away from "notconnect@domain.com" to immediately bypass landing page
-      this.profile.avatar = "🛡️";
-      this.profile.customTag = "Guest";
+      this.profile = {
+        level: 1,
+        xp: 0,
+        xpNeeded: 100,
+        streak: 0,
+        coins: 0,
+        favoriteCategories: ["Basics", "Adventure"],
+        weakWords: [],
+        achievements: [],
+        name: "Guest Adventurer",
+        email: "guest@domain.com",
+        avatar: "🛡️",
+        lastPracticeDate: ""
+      };
       this.saveProfile();
+      this.dictionary.setWords([
+        { german: "der Drache", english: "the dragon", category: "Adventure", difficulty: "Medium", isFavorite: true, accuracyCount: 0, errorCount: 0 },
+        { german: "die Burg", english: "the castle", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "das Abenteuer", english: "the adventure", category: "Basics", difficulty: "Easy", isFavorite: true, accuracyCount: 0, errorCount: 0 },
+        { german: "überwinden", english: "to overcome / vanquish", category: "Verbs", difficulty: "Hard", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "der Trank", english: "the potion", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "das Schwert", english: "the sword", category: "Adventure", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "schnell", english: "fast / swift", category: "Adjectives", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "der Wald", english: "the forest", category: "Nouns", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "die Hexe", english: "the witch", category: "Adventure", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "der Schatz", english: "the treasure", category: "Adventure", difficulty: "Easy", isFavorite: true, accuracyCount: 0, errorCount: 0 },
+        { german: "kämpfen", english: "to fight / battle", category: "Verbs", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "der Schild", english: "the shield", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "guten Morgen", english: "good morning", category: "Conversation", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+        { german: "wie geht es dir?", english: "how are you?", category: "Conversation", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 }
+      ]);
       this.renderAllViews();
       this.displayBannerNotification("⚡ Quick Start: Welcomed Guest Adventurer!", "blue");
     });
@@ -1891,6 +1930,11 @@ export class AppOrchestrator {
     const cardEl = document.getElementById("sandbox-card");
 
     if (forgeBtn && inputEl && germanEl && feedbackEl && cardEl) {
+      // Set initial placeholder and first word dynamically so they are always in sync
+      const firstWord = DEMO_WORDS[this.demoWordIndex];
+      germanEl.innerText = firstWord.german;
+      inputEl.placeholder = `Hint: starts with '${firstWord.english[0]}'...`;
+
       forgeBtn.addEventListener("click", () => {
         const val = inputEl.value.trim().toLowerCase();
         const targetWord = DEMO_WORDS[this.demoWordIndex];
@@ -1910,6 +1954,7 @@ export class AppOrchestrator {
             const nextWord = DEMO_WORDS[this.demoWordIndex];
             germanEl.innerText = nextWord.german;
             inputEl.value = "";
+            inputEl.placeholder = `Hint: starts with '${nextWord.english[0]}'...`;
             cardEl.className = "glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col gap-4 shadow-xl select-none";
             feedbackEl.innerHTML = `Great job! Now forge the next spell: <b>${nextWord.german}</b>. Hint: starts with '<strong>${nextWord.english[0]}</strong>'.`;
           }, 1600);

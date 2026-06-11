@@ -240,13 +240,13 @@ app.post("/api/auth/otp/verify", (req, res) => {
       customTag: customTag || "Cavalier",
       profile: profile || {
         level: 1,
-        xp: 120,
-        xpNeeded: 300,
+        xp: 0,
+        xpNeeded: 100,
         streak: 0,
-        coins: 150,
+        coins: 0,
         favoriteCategories: ["Basics", "Adventure"],
         weakWords: [],
-        achievements: ["recruit"],
+        achievements: [],
         name: name,
         email: emailKey,
         avatar: avatar || "🛡️",
@@ -334,7 +334,31 @@ app.post("/api/auth/save-progress", (req, res) => {
     const db = readUsersDB();
     
     if (!db[emailKey]) {
-      return res.status(404).json({ error: "Adventurer account not found on the server database." });
+      // Auto-provision account for verified OAuth/SSO or dynamic users
+      db[emailKey] = {
+        email: emailKey,
+        password: "", // Standard SSO authentication
+        name: profile?.name || "Adventurer",
+        avatar: profile?.avatar || "🛡️",
+        customTag: profile?.customTag || "Cavalier",
+        profile: {
+          level: 1,
+          xp: 0,
+          xpNeeded: 100,
+          streak: 0,
+          coins: 0,
+          favoriteCategories: ["Basics", "Adventure"],
+          weakWords: [],
+          achievements: [],
+          name: profile?.name || "Adventurer",
+          email: emailKey,
+          avatar: profile?.avatar || "🛡️",
+          lastPracticeDate: "",
+          ...profile
+        },
+        words: [],
+        history: []
+      };
     }
     
     // Update active level statistics
