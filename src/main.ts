@@ -228,7 +228,7 @@ export class AppOrchestrator {
     const elUserEmail = document.getElementById("user-email-subtitle");
 
     if (elLevel) elLevel.innerText = `${this.profile.level}`;
-    if (elTitle) elTitle.innerText = `${this.profile.customTag ? `[${this.profile.customTag}] ` : ""}${this.getLevelTitle(this.profile.level)}`;
+    if (elTitle) elTitle.innerText = `${this.getLevelTitle(this.profile.level)}`;
     if (elXpText) elXpText.innerText = `${this.profile.xp} / ${this.profile.xpNeeded} XP`;
     if (elXpBar) {
       const pct = Math.min(100, Math.round((this.profile.xp / this.profile.xpNeeded) * 100));
