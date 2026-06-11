@@ -75,6 +75,31 @@ export class Dictionary {
     localStorage.setItem("gq_vocab_cache", JSON.stringify(this.words));
   }
 
+  // Tracking deleted words to prevent them from being restored during Sheets sync merges
+  private getDeletedWordsKeys(): string[] {
+    try {
+      const stored = localStorage.getItem("gq_deleted_words");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Error reading deleted words from localStorage:", e);
+    }
+    return [];
+  }
+
+  private saveDeletedWordsKeys(keys: string[]) {
+    try {
+      localStorage.setItem("gq_deleted_words", JSON.stringify(keys));
+    } catch (e) {
+      console.error("Error saving deleted words to localStorage:", e);
+    }
+  }
+
+  private clearDeletedWordsKeys() {
+    localStorage.removeItem("gq_deleted_words");
+  }
+
   // Set local state directly
   public setWords(newWords: Word[]) {
     this.words = newWords;
@@ -87,6 +112,13 @@ export class Dictionary {
     const exists = this.words.some(w => w.german.toLowerCase().trim() === word.german.toLowerCase().trim());
     if (exists) return false;
     
+    // If we re-add a deleted word, remove it from the deleted queue
+    const deletedKeys = this.getDeletedWordsKeys();
+    const key = word.german.toLowerCase().trim();
+    if (deletedKeys.includes(key)) {
+      this.saveDeletedWordsKeys(deletedKeys.filter(k => k !== key));
+    }
+
     this.words.unshift(word);
     this.saveToCache();
     return true;
@@ -101,8 +133,18 @@ export class Dictionary {
 
   public deleteWord(index: number) {
     if (index >= 0 && index < this.words.length) {
-      this.words.splice(index, 1);
+      const removed = this.words.splice(index, 1)[0];
       this.saveToCache();
+
+      // Store deleted key to exclude from sheet replication/restores
+      if (removed && removed.german) {
+        const deletedKeys = this.getDeletedWordsKeys();
+        const key = removed.german.toLowerCase().trim();
+        if (!deletedKeys.includes(key)) {
+          deletedKeys.push(key);
+          this.saveDeletedWordsKeys(deletedKeys);
+        }
+      }
     }
   }
 
@@ -261,6 +303,7 @@ export class Dictionary {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       
+      const deletedKeys = this.getDeletedWordsKeys();
       let remoteWords: Word[] = [];
       if (readRes.ok) {
         const readData = await readRes.json();
@@ -273,12 +316,20 @@ export class Dictionary {
             isFavorite: r[4] === "TRUE" || r[4] === true,
             accuracyCount: parseInt(r[5]) || 0,
             errorCount: parseInt(r[6]) || 0
-          })).filter((w: Word) => w.german.trim() !== "");
+          })).filter((w: Word) => {
+            const trimmedKey = w.german.toLowerCase().trim();
+            return trimmedKey !== "" && !deletedKeys.includes(trimmedKey);
+          });
         }
       }
       
       // 4. Merge remote words and local words
-      const localWords = [...this.words];
+      // Only include local words that aren't in deletedKeys either
+      const localWords = this.words.filter(w => {
+        const key = w.german.toLowerCase().trim();
+        return !deletedKeys.includes(key);
+      });
+      
       const mergedWordsMap = new Map<string, Word>();
       
       for (const w of localWords) {
@@ -304,6 +355,20 @@ export class Dictionary {
       const finalizedWords = Array.from(mergedWordsMap.values());
       this.setWords(finalizedWords);
       
+      // Clear the target range in Google Sheet first to prevent trailing/deleted rows from sticking
+      try {
+        const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Vocabulary!A1:G1500:clear`;
+        await fetch(clearUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+          }
+        });
+      } catch (clearErr) {
+        console.warn("Could not clear Sheet range before update:", clearErr);
+      }
+
       // 5. Upload finalized words list back to spreadsheet
       const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Vocabulary!A1:G1500?valueInputOption=RAW`;
       const writeRes = await fetch(writeUrl, {
@@ -335,6 +400,9 @@ export class Dictionary {
         throw new Error(`Failed writing database data to Sheet: ${writeRes.statusText} - ${errText}`);
       }
       
+      // Purge local deleted log since Google sheet has successfully updated
+      this.clearDeletedWordsKeys();
+
       return { 
         success: true, 
         count: finalizedWords.length, 
