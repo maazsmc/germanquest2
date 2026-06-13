@@ -148,6 +148,9 @@ export class AppOrchestrator {
           this.profile.achievements.splice(heartIdx, 1);
           this.saveProfile();
         }
+      },
+      onNotification: (message, theme) => {
+        this.displayBannerNotification(message, theme);
       }
     });
 
@@ -1218,7 +1221,7 @@ export class AppOrchestrator {
     if (!shopItem) return;
 
     if (this.profile.coins < shopItem.price) {
-      alert("❌ Insolvency! You don't possess enough virtual gold. Clears practices to reap gold rewards first!");
+      this.displayBannerNotification("❌ Insolvency! You don't possess enough virtual gold. Complete practices to reap rewards first!", "purple");
       return;
     }
 
@@ -1628,7 +1631,7 @@ export class AppOrchestrator {
           this.dictionary.syncWithGoogleSheets();
         }
       } else {
-        alert("❌ Duplicate Word! This German term already exists inside your handbook.");
+        this.displayBannerNotification("❌ Duplicate Word! This German term already exists inside your handbook.", "amber");
       }
 
       if (wordModal) wordModal.classList.add("hidden");
@@ -1660,7 +1663,7 @@ export class AppOrchestrator {
         
         // Hearts checks for Boss battle
         if (mode === "boss" && this.dictionary.getWords().length < 4) {
-          alert("👹 High Danger! You must forge at least 4 unique words in your Quest Book before challenging the Vocabulary Overlord!");
+          this.displayBannerNotification("👹 High Danger! You must forge at least 4 unique words in your Quest Book before challenging the Vocabulary Overlord!", "purple");
           return;
         }
 
@@ -2243,20 +2246,20 @@ export class AppOrchestrator {
         const passwordInput = (document.getElementById("auth-signup-password") as HTMLInputElement)?.value.trim();
 
         if (!nameInput || !emailInput || !passwordInput) {
-          alert("⚠️ All fields (Name, Email, and Password) are required to create an account.");
+          this.displayBannerNotification("⚠️ All fields (Name, Email, and Password) are required to create an account.", "amber");
           return;
         }
 
         // Strict Email format check
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(emailInput)) {
-          alert("⚠️ Please enter a valid, real email address (e.g. yourname@domain.com).");
+          this.displayBannerNotification("⚠️ Please enter a real email address (e.g. yourname@domain.com).", "amber");
           return;
         }
 
         // Strict Password length check
         if (passwordInput.length < 6) {
-          alert("⚠️ Password must be at least 6 characters long to meet integrity rules.");
+          this.displayBannerNotification("⚠️ Password must be at least 6 characters long.", "amber");
           return;
         }
 
@@ -2322,7 +2325,7 @@ export class AppOrchestrator {
 
         } catch (err: any) {
           console.error(err);
-          alert(`❌ OTP Failed: ${err.message}`);
+          this.displayBannerNotification(`❌ OTP Failed: ${err.message}`, "purple");
         } finally {
           signUpBtn.removeAttribute("disabled");
           signUpBtn.innerText = "➕ Create Free Account";
@@ -2337,7 +2340,7 @@ export class AppOrchestrator {
         const codeInput = otpCodeInput?.value.trim();
 
         if (!codeInput || codeInput.length !== 6) {
-          alert("⚠️ Please enter the complete 6-digit verification code.");
+          this.displayBannerNotification("⚠️ Please enter the complete 6-digit verification code.", "amber");
           return;
         }
 
@@ -2386,7 +2389,7 @@ export class AppOrchestrator {
 
         } catch (err: any) {
           console.error(err);
-          alert(`❌ Verification Failed: ${err.message}`);
+          this.displayBannerNotification(`❌ Verification Failed: ${err.message}`, "purple");
         } finally {
           otpVerifyBtn.removeAttribute("disabled");
           otpVerifyBtn.innerText = "🛡️ Verify Code & Complete Sign Up";
@@ -2401,7 +2404,7 @@ export class AppOrchestrator {
         const passwordInput = (document.getElementById("auth-signin-password") as HTMLInputElement)?.value.trim();
 
         if (!emailInput || !passwordInput) {
-          alert("⚠️ Please provide both your email and password.");
+          this.displayBannerNotification("⚠️ Please provide both your email and password.", "amber");
           return;
         }
 
@@ -2453,7 +2456,7 @@ export class AppOrchestrator {
 
         } catch (err: any) {
           console.error(err);
-          alert(`❌ Login Failed: ${err.message}`);
+          this.displayBannerNotification(`❌ Login Failed: ${err.message}`, "purple");
         } finally {
           signInBtn.removeAttribute("disabled");
           signInBtn.innerText = "🔑 Sign In to Account";

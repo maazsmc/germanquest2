@@ -7,11 +7,13 @@ export interface GameConfig {
   onHeartLoss?: () => void;
   hasExtraBossHeart?: () => boolean;
   consumeExtraBossHeart?: () => void;
+  onNotification?: (msg: string, theme?: "purple" | "emerald" | "blue" | "amber" | "indigo") => void;
 }
 
 export class Games {
   private dictionary: Dictionary;
   private onFinish: (xpEarned: number, coinsEarned: number, accuracy: number, gameMode: string) => void;
+  private onNotification?: (msg: string, theme?: "purple" | "emerald" | "blue" | "amber" | "indigo") => void;
   public currentUserClass: string = "Spellslinger";
   
   // Game session states
@@ -38,6 +40,15 @@ export class Games {
     this.onFinish = config.onFinish;
     this.hasExtraBossHeart = config.hasExtraBossHeart;
     this.consumeExtraBossHeart = config.consumeExtraBossHeart;
+    this.onNotification = config.onNotification;
+  }
+
+  private notifyUser(message: string, theme: "purple" | "emerald" | "blue" | "amber" | "indigo" = "purple") {
+    if (this.onNotification) {
+      this.onNotification(message, theme);
+    } else {
+      console.warn(`[Notification fallback]: ${message}`);
+    }
   }
 
   // Start any practice mode
@@ -49,7 +60,7 @@ export class Games {
     
     const allWords = this.dictionary.getWords();
     if (allWords.length === 0) {
-      alert("Quest Book is empty! Force adding starter spells first.");
+      this.notifyUser("⚠️ Quest Book is empty! Force adding starter spells first.", "amber");
       return;
     }
 
@@ -661,7 +672,7 @@ export class Games {
 
         window.speechSynthesis.speak(utterance);
       } else {
-        alert("Web Speech synthesis is not supported on this device/frame connection.");
+        this.notifyUser("⚠️ Web Speech synthesis is not supported on this device/frame connection.", "indigo");
       }
     };
 

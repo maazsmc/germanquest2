@@ -21,6 +21,16 @@ body {
   overflow-x: hidden;
 }
 
+/* Ensure balanced heading text wraps symmetrically */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+/* Ensure paragraph description fields avoid orphan endings gracefully */
+p, blockquote, label {
+  text-wrap: pretty;
+}
+
 /* Glassmorphism RPG Panel */
 .glass-panel {
   background: rgba(24, 24, 27, 0.6);
