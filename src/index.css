@@ -219,3 +219,48 @@ p, blockquote, label {
   0% { transform: scale(1); opacity: 1; }
   100% { transform: scale(2.4); opacity: 0; }
 }
+
+/* ======================================================= */
+/* MOBILE APP FIRST FLUID & TOUCH ADJUSTMENTS              */
+/* ======================================================= */
+
+/* Prevent double-tap zooming & make touch triggers responsive */
+a, button, select, input, [role="button"], .rpg-btn, .tile-card, .vocab-card {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* User-select behavior: Prevent game cards text from accidentally selecting during rapid double-tapping on mobile */
+.tile-card, .vocab-card, .badge-item, #sandbox-card {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Handle modern notched phone display safe active regions */
+header, footer, #landing-page-interface, #app-core-interface {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+#app-core-interface {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Remove hover scale animations on devices that do not support hover to stop sticky states */
+@media (hover: none) {
+  button:hover, .rpg-btn:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Hide horizontal scroll indicators on side navigations for neat mobile view */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+

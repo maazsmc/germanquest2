@@ -2634,6 +2634,19 @@ function initApp() {
   if (!(window as any).GermanQuest) {
     (window as any).GermanQuest = new AppOrchestrator();
   }
+
+  // Register Progressive Web App (PWA) Service Worker for seamless mobile/offline play
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => {
+          console.log('[PWA] Service Worker registered successfully with scope:', reg.scope);
+        })
+        .catch((err) => {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+    });
+  }
 }
 
 if (document.readyState === "loading") {

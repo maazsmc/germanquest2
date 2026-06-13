@@ -1,0 +1,9 @@
+{
+  "appId": "com.germanquest.rpg",
+  "appName": "German Quest",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": []
+  }
+}

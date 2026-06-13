@@ -1,0 +1,49 @@
+{
+  "name": "German Quest RPG Vocabulary",
+  "short_name": "German Quest",
+  "description": "Gamified German vocabulary learning with roleplaying elements and AI tutor integration.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07090c",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["education", "games", "books"],
+  "shortcuts": [
+    {
+      "name": "Open Quest Book",
+      "short_name": "Quest Book",
+      "url": "/?tab=dictionary",
+      "description": "Examine and manage your current vocabulary scroll deck"
+    },
+    {
+      "name": "Arena Training",
+      "short_name": "Arena",
+      "url": "/?tab=games",
+      "description": "Enter the training ground and challenge lexical bosses"
+    },
+    {
+      "name": "Speak with Maaz",
+      "short_name": "Tutor",
+      "url": "/?tab=ai-citadel",
+      "description": "Receive prompt guidance from your AI Companion Owl"
+    }
+  ]
+}

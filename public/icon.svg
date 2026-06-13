@@ -1,0 +1,69 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0" />
+      <stop offset="50%" stop-color="#94a3b8" />
+      <stop offset="100%" stop-color="#475569" />
+    </linearGradient>
+    <linearGradient id="hiltGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6D28D9" />
+      <stop offset="50%" stop-color="#4C1D95" />
+      <stop offset="100%" stop-color="#1E1B4B" />
+    </linearGradient>
+    <linearGradient id="trimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#A78BFA" />
+      <stop offset="100%" stop-color="#4C1D95" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- App launcher background -->
+  <rect width="100%" height="100%" fill="#0a0a0f" rx="18" />
+  
+  <g transform="translate(0, 4)">
+    <!-- Crossed Sword 1 (Left to Right) -->
+    <g transform="rotate(45 50 50)">
+      <path d="M48 15 L52 15 L52 75 L48 75 Z" fill="url(#bladeGrad)" />
+      <path d="M50 15 L50 75" stroke="#cbd5e1" stroke-width="0.5" />
+      <path d="M42 75 L58 75 L58 79 L42 79 Z" fill="url(#hiltGrad)" rx="1" />
+      <path d="M47 79 L53 79 L53 90 L47 90 Z" fill="#7c2d12" />
+      <circle cx="50" cy="92" r="3" fill="url(#hiltGrad)" />
+    </g>
+
+    <!-- Crossed Sword 2 (Right to Left) -->
+    <g transform="rotate(-45 50 50)">
+      <path d="M48 15 L52 15 L52 75 L48 75 Z" fill="url(#bladeGrad)" />
+      <path d="M50 15 L50 75" stroke="#cbd5e1" stroke-width="0.5" />
+      <path d="M42 75 L58 75 L58 79 L42 79 Z" fill="url(#hiltGrad)" rx="1" />
+      <path d="M47 79 L53 79 L53 90 L47 90 Z" fill="#7c2d12" />
+      <circle cx="50" cy="92" r="3" fill="url(#hiltGrad)" />
+    </g>
+    
+    <!-- Shield Background Glow -->
+    <circle cx="50" cy="48" r="24" fill="#a78bfa" opacity="0.15" filter="url(#glow)" />
+
+    <!-- Shield Body -->
+    <path d="M28 32 C28 32, 50 24, 50 24 C50 24, 72 32, 72 32 C72 52, 50 72, 50 72 C50 72, 28 52, 28 32 Z" fill="url(#shieldGrad)" stroke="url(#trimGrad)" stroke-width="2.5" />
+    
+    <!-- Shield Inner Trim -->
+    <path d="M33 36 C33 36, 50 30, 50 30 C50 30, 67 36, 67 36 C67 50, 50 65, 50 65 C50 65, 33 50, 33 36 Z" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.5" />
+
+    <!-- Central Magical Rune / Star -->
+    <g transform="translate(50, 46)">
+      <path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3 Z" fill="#fbbf24" filter="url(#glow)" />
+      <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+    </g>
+
+    <!-- Tiny sparkle points -->
+    <circle cx="28" cy="24" r="1.5" fill="#38bdf8" filter="url(#glow)" />
+    <circle cx="72" cy="24" r="1.5" fill="#38bdf8" filter="url(#glow)" />
+    <circle cx="50" cy="78" r="1" fill="#c084fc" filter="url(#glow)" />
+  </g>
+</svg>
