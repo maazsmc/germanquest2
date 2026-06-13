@@ -14,6 +14,8 @@
 
     <!-- LANDING WELCOME PAGE (Visible when not logged in) -->
     <div id="landing-page-interface" class="hidden flex-col min-h-screen bg-[#07090c] relative overflow-hidden transition-all duration-300">
+      <!-- Interactive 3D Rune Particles Canvas -->
+      <canvas id="landing-3d-canvas" class="absolute inset-0 w-full h-full pointer-events-none opacity-40 z-0"></canvas>
       <!-- Ambient Background Glows -->
       <div class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-violet-600/5 rounded-full blur-[140px] pointer-events-none"></div>
       <div class="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[140px] pointer-events-none"></div>
@@ -90,7 +92,7 @@
         </div>
 
         <!-- Interactive Sandbox Card Box -->
-        <div class="w-full lg:w-[460px] flex flex-col gap-4 relative" id="spell-forger-sandbox">
+        <div class="w-full lg:w-[460px] flex flex-col gap-4 relative -translate-y-4 lg:-translate-y-12" id="spell-forger-sandbox">
           <!-- Ambient lighting -->
           <div class="absolute inset-0 bg-violet-600/10 rounded-3xl blur-2xl -z-10"></div>
           
@@ -261,13 +263,13 @@
           </div>
 
           <!-- Flame / Streaks -->
-          <div class="flex items-center gap-2 bg-slate-900/80 border border-rose-950/20 rounded-lg px-2.5 py-1.5 cursor-help" title="Daily Streak factor" id="streak-tooltip">
-            <span class="text-lg animate-pulse" id="hud-streak-icon">🔥</span>
+          <button class="flex items-center gap-2 bg-slate-900/80 hover:bg-slate-800/80 border border-rose-950/20 hover:border-orange-500/30 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all active:scale-[0.98] select-none text-left" title="Click to open Daily Streak & Campfire Repair" id="streak-tooltip">
+            <span class="text-lg" id="hud-streak-icon">🔥</span>
             <div>
               <p class="text-[9px] text-slate-400 font-mono uppercase leading-none">Streak</p>
               <p class="text-xs font-semibold text-rose-400" id="hud-streak">0 Days</p>
             </div>
-          </div>
+          </button>
 
           <!-- Coins -->
           <div class="flex items-center gap-2 bg-slate-900/80 border border-amber-950/20 rounded-lg px-2.5 py-1.5">
@@ -352,6 +354,35 @@
           <button class="mt-2 text-[10px] text-violet-400 hover:text-violet-300 font-mono cursor-pointer flex items-center gap-1 self-end justify-end w-full" id="ask-companion-tip">
             Generate micro tip →
           </button>
+        </div>
+
+        <!-- Guild Class Selector Sidepanel Card -->
+        <div class="glass-panel rounded-2xl p-4 hidden lg:block border border-indigo-500/10" id="class-perk-sidecard">
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+            <h4 class="text-xs font-display font-bold text-slate-200 flex items-center gap-1.5">
+              <span>🔮</span> GUILD CLASS
+            </h4>
+            <span class="text-[9px] font-mono text-indigo-400 capitalize" id="hud-class-badge">None</span>
+          </div>
+          
+          <div class="text-[11px] text-slate-400 leading-relaxed font-sans mt-1" id="hud-class-perk-desc">
+            No active perk. Choose your guild training class to activate special boosts!
+          </div>
+
+          <div class="mt-3 flex flex-col gap-1.5">
+            <p class="text-[9px] uppercase font-mono text-slate-500">Switch Class perk:</p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button class="class-select-btn p-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-[10px] font-bold text-slate-350 hover:bg-slate-800 hover:text-white cursor-pointer hover:border-violet-500/50 transition-all text-center" data-class="Spellslinger" title="Mage: +25% Coins in Scrambler & Gender Defender">
+                <span>🔮</span><span class="block text-[8px] mt-0.5">Mage</span>
+              </button>
+              <button class="class-select-btn p-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-[10px] font-bold text-slate-350 hover:bg-slate-800 hover:text-white cursor-pointer hover:border-violet-500/50 transition-all text-center" data-class="Shield-Bearer" title="Warrior: +1 starting Heart in Boss Fight">
+                <span>🛡️</span><span class="block text-[8px] mt-0.5">Warrior</span>
+              </button>
+              <button class="class-select-btn p-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-[10px] font-bold text-slate-350 hover:bg-slate-800 hover:text-white cursor-pointer hover:border-violet-500/50 transition-all text-center" data-class="Shadow-Blade" title="Rogue: +15% XP on study completes">
+                <span>🦅</span><span class="block text-[8px] mt-0.5">Rogue</span>
+              </button>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -463,6 +494,8 @@
             </div>
           </div>
 
+
+
           <!-- Grid Dashboard Columns -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
@@ -540,6 +573,20 @@
               </div>
             </div>
 
+          </div>
+
+          <!-- Daily Quests Questboard Component -->
+          <div class="glass-panel rounded-2xl p-5 border border-indigo-500/10">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-indigo-500/10">
+              <h3 class="font-display font-medium text-slate-200 text-sm flex items-center gap-2">
+                <span>🎯</span> DAILY HEROIC QUESTBOARD
+              </h3>
+              <p class="text-[10px] text-indigo-400 font-mono">Resets every 24 hours</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="daily-questboard-container">
+              <!-- Rendered dynamically -->
+            </div>
           </div>
 
           <!-- Achievements Section -->
@@ -731,6 +778,54 @@
                 <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
                   <span>Payout: <b class="text-amber-400 font-mono">20g / XP</b></span>
                   <span class="text-amber-400 font-semibold font-mono">SPEAK →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Gender Defender -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-sky-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="gender">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-sky-950/60 rounded-xl border border-sky-500/25">🛡️</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-sky-950 text-sky-400 rounded-full font-mono font-medium">Article Shield</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Gender Defender</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Defend your stats by picking correct genders (der/die/das) for words. Solves German’s ultimate noun riddle!</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">10g / XP</b></span>
+                  <span class="text-sky-400 font-semibold font-mono">DEFEND →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Rune Scrambler -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-violet-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="scrambler">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-violet-950/60 rounded-xl border border-violet-500/25">🔮</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-violet-950 text-violet-400 rounded-full font-mono font-medium">Rune Order</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Rune Spell Scrambler</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Weave letters in exact order using interactive runestones to cast the word spell. Absolute memory training.</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">15g / XP</b></span>
+                  <span class="text-violet-400 font-semibold font-mono">WEAVE →</span>
+                </div>
+              </div>
+
+              <!-- Game Card: Vocab Alchemist -->
+              <div class="glass-panel rounded-2xl p-5 hover:border-amber-500/40 cursor-pointer transition-all flex flex-col justify-between hover:-translate-y-1 rpg-btn" data-game="alchemist">
+                <div>
+                  <div class="flex justify-between items-start mb-3">
+                    <span class="text-2xl p-3 bg-amber-950/60 rounded-xl border border-amber-500/25">🧪</span>
+                    <span class="text-[9px] px-2 py-0.5 bg-amber-950 text-amber-400 rounded-full font-mono font-medium">Brew Quest</span>
+                  </div>
+                  <h3 class="font-display font-bold text-slate-100 text-base">Vocab Alchemist Brew</h3>
+                  <p class="text-slate-400 text-xs mt-1.5 leading-relaxed">Reverse Translation Trial. Distill and synthesize the correct German formula for the English meaning.</p>
+                </div>
+                <div class="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-300">
+                  <span>Payout: <b class="text-amber-400 font-mono">12g / XP</b></span>
+                  <span class="text-amber-400 font-semibold font-mono">BREW →</span>
                 </div>
               </div>
 
@@ -986,6 +1081,23 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- NEW DAILY STREAK & CAMPFIRE REPAIR MODAL -->
+    <div class="fixed inset-0 bg-black/85 z-50 hidden flex justify-center items-center p-4 transition-all" id="streak-modal">
+      <div class="glass-panel-heavy rounded-3xl max-w-lg w-full p-6 flex flex-col gap-4 animate-scale border border-orange-500/20 relative overflow-hidden">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h3 class="text-sm font-display font-semibold text-orange-400 flex items-center gap-2 uppercase tracking-wide">
+            🔥 DAILY STREAK & CAMPFIRE
+          </h3>
+          <button class="text-slate-400 hover:text-slate-200 text-lg cursor-pointer" id="close-streak-modal-btn">✕</button>
+        </div>
+
+        <!-- Interactive Duolingo-style Streak Widget inside the modal -->
+        <div class="flex flex-col items-center justify-center text-center w-full gap-5 py-2" id="interactive-streak-widget">
+           <!-- Dynamic content rendered from main.ts -->
+        </div>
       </div>
     </div>
 

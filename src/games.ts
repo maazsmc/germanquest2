@@ -1,14 +1,18 @@
 import { Word, Dictionary } from "./dictionary";
+import { AudioSFX } from "./audio";
 
 export interface GameConfig {
   dictionary: Dictionary;
   onFinish: (xpEarned: number, coinsEarned: number, accuracy: number, gameMode: string) => void;
   onHeartLoss?: () => void;
+  hasExtraBossHeart?: () => boolean;
+  consumeExtraBossHeart?: () => void;
 }
 
 export class Games {
   private dictionary: Dictionary;
   private onFinish: (xpEarned: number, coinsEarned: number, accuracy: number, gameMode: string) => void;
+  public currentUserClass: string = "Spellslinger";
   
   // Game session states
   private currentMode: string = "";
@@ -20,6 +24,10 @@ export class Games {
   // Boss state
   private bossHp: number = 100;
   private userHearts: number = 3;
+  private maxHearts: number = 3;
+
+  private hasExtraBossHeart?: () => boolean;
+  private consumeExtraBossHeart?: () => void;
 
   // Matching game state
   private matchedTiles: Set<number> = new Set();
@@ -28,10 +36,12 @@ export class Games {
   constructor(config: GameConfig) {
     this.dictionary = config.dictionary;
     this.onFinish = config.onFinish;
+    this.hasExtraBossHeart = config.hasExtraBossHeart;
+    this.consumeExtraBossHeart = config.consumeExtraBossHeart;
   }
 
   // Start any practice mode
-  public start(mode: string, questionCount: number = 5) {
+  public start(mode: string, questionCount: number = 10) {
     this.currentMode = mode;
     this.currentQIndex = 0;
     this.correctAnswersCount = 0;
@@ -54,7 +64,43 @@ export class Games {
       }
       this.totalLessonsCount = this.currentQuestions.length;
       this.bossHp = 100;
-      this.userHearts = 3;
+      let baseHearts = (this.currentUserClass === "Shield-Bearer") ? 4 : 3;
+      if (this.hasExtraBossHeart && this.hasExtraBossHeart()) {
+        baseHearts += 1;
+        if (this.consumeExtraBossHeart) {
+          this.consumeExtraBossHeart();
+        }
+      }
+      this.maxHearts = baseHearts;
+      this.userHearts = baseHearts;
+    } else if (mode === "gender") {
+      const userNouns = allWords.filter(w => /^(der|die|das)\s+/i.test(w.german));
+      const needed = questionCount;
+      let pool = [...userNouns];
+      if (pool.length < needed) {
+        // inject from default nouns to ensure there are always standard, high-quality nouns
+        const DEF_NOUNS: Word[] = [
+          { german: "der Hund", english: "the dog", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "die Katze", english: "the cat", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "das Buch", english: "the book", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "der Apfel", english: "the apple", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "die Sonne", english: "the sun", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "das Auto", english: "the car", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "der Drache", english: "the dragon", category: "Adventure", difficulty: "Medium", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "die Burg", english: "the castle", category: "Adventure", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "das Abenteuer", english: "the adventure", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "der Wald", english: "the forest", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "die Blume", english: "the flower", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 },
+          { german: "das Haus", english: "the house", category: "Basics", difficulty: "Easy", isFavorite: false, accuracyCount: 0, errorCount: 0 }
+        ];
+        for (const defNoun of DEF_NOUNS) {
+          if (!pool.some(p => p.german.toLowerCase().trim() === defNoun.german.toLowerCase().trim())) {
+            pool.push(defNoun);
+          }
+        }
+      }
+      this.currentQuestions = this.shuffle(pool).slice(0, needed);
+      this.totalLessonsCount = this.currentQuestions.length;
     } else {
       this.currentQuestions = this.shuffle([...allWords]).slice(0, Math.min(questionCount, allWords.length));
       this.totalLessonsCount = this.currentQuestions.length;
@@ -87,7 +133,8 @@ export class Games {
       if (bossCon) bossCon.classList.remove("hidden");
       if (heartsLabel) {
         let heartsStr = "";
-        for (let i = 0; i < 3; i++) heartsStr += i < this.userHearts ? "❤️" : "🖤";
+        const totalMaxHearts = this.maxHearts;
+        for (let i = 0; i < totalMaxHearts; i++) heartsStr += i < this.userHearts ? "❤️" : "🖤";
         heartsLabel.innerText = heartsStr;
       }
     } else {
@@ -123,6 +170,15 @@ export class Games {
         break;
       case "boss":
         this.renderBossBattle(parent);
+        break;
+      case "gender":
+        this.renderGenderDefender(parent);
+        break;
+      case "scrambler":
+        this.renderRuneScrambler(parent);
+        break;
+      case "alchemist":
+        this.renderAlchemist(parent);
         break;
     }
   }
@@ -193,6 +249,7 @@ export class Games {
 
     if (isCorrect) {
       this.correctAnswersCount++;
+      AudioSFX.playCorrect();
       clickedBtn.classList.remove("border-slate-800");
       clickedBtn.classList.add("border-emerald-500", "bg-emerald-950/20", "text-emerald-400");
       if (feedback) {
@@ -200,6 +257,7 @@ export class Games {
         feedback.innerText = "✨ SEHR GUT! Correct answer!";
       }
     } else {
+      AudioSFX.playError();
       clickedBtn.classList.remove("border-slate-800");
       clickedBtn.classList.add("border-rose-500", "bg-rose-950/20", "text-rose-400");
       
@@ -216,10 +274,10 @@ export class Games {
       }
     }
 
-    // Advance after 1.8 seconds delay
+    // Advance after 2 seconds delay
     setTimeout(() => {
       this.nextQuestion();
-    }, 1800);
+    }, 2000);
   }
 
   // -------------------------------------------------------------
@@ -518,7 +576,7 @@ export class Games {
       // Check ultimate win
       if (clearedPairs === totalPairs) {
         setTimeout(() => {
-          this.onFinish(25, 25, 100, "matching"); // Award high loot
+          this.onFinish(20, 8, 100, "matching"); // Award high loot but lower coins
         }, 1200);
       }
     } else {
@@ -651,7 +709,7 @@ export class Games {
 
     setTimeout(() => {
       this.nextQuestion();
-    }, 1800);
+    }, 2000);
   }
 
   // -------------------------------------------------------------
@@ -797,7 +855,7 @@ export class Games {
 
     setTimeout(() => {
       this.nextQuestion();
-    }, 1800);
+    }, 2000);
   }
 
   // -------------------------------------------------------------
@@ -932,7 +990,8 @@ export class Games {
 
       if (heartsLabel) {
         let heartsStr = "";
-        for (let i = 0; i < 3; i++) heartsStr += i < this.userHearts ? "❤️" : "🖤";
+        const totalMaxHearts = this.maxHearts;
+        for (let i = 0; i < totalMaxHearts; i++) heartsStr += i < this.userHearts ? "❤️" : "🖤";
         heartsLabel.innerText = heartsStr;
       }
 
@@ -953,7 +1012,7 @@ export class Games {
       } else {
         this.nextQuestion();
       }
-    }, 2200);
+    }, 2000);
   }
 
   // Draw Game Over Screen for Battle modes
@@ -983,7 +1042,7 @@ export class Games {
           </div>
           <div>
             <p class="text-[10px] text-slate-400 font-mono">GOLD AWARD</p>
-            <p class="text-xl font-mono font-bold text-amber-400">🪙 +50g</p>
+            <p class="text-xl font-mono font-bold text-amber-400">🪙 +20g</p>
           </div>
           <div>
             <p class="text-[10px] text-slate-400 font-mono">XP AWARD</p>
@@ -999,7 +1058,7 @@ export class Games {
       parent.appendChild(wrapper);
 
       wrapper.querySelector("#boss-victory-claim")?.addEventListener("click", () => {
-        this.onFinish(50, 50, accuracy, "boss");
+        this.onFinish(50, 20, accuracy, "boss");
       });
 
     } else {
@@ -1019,7 +1078,7 @@ export class Games {
       parent.appendChild(wrapper);
 
       wrapper.querySelector("#boss-defeat-claim")?.addEventListener("click", () => {
-        this.onFinish(10, 5, accuracy, "boss_defeat"); // small pity loot
+        this.onFinish(10, 1, accuracy, "boss_defeat"); // small pity loot
       });
     }
   }
@@ -1035,19 +1094,19 @@ export class Games {
     } else {
       // Practice session finished normally! Calculate coins & XP
       let xpEarned = 15;
-      let coinsEarned = 15;
+      let coinsEarned = 5;
       const finalAccuracy = Math.round((this.correctAnswersCount / this.totalLessonsCount) * 100);
 
-      // Scale awards perfectly based on accuracy
+      // Scale awards perfectly based on accuracy (lower gold coins, hard mode)
       if (finalAccuracy === 100) {
         xpEarned = 25;
-        coinsEarned = 25;
+        coinsEarned = 12;
       } else if (finalAccuracy >= 80) {
         xpEarned = 20;
-        coinsEarned = 20;
+        coinsEarned = 8;
       } else if (finalAccuracy < 50) {
         xpEarned = 10;
-        coinsEarned = 10;
+        coinsEarned = 2;
       }
 
       this.renderEndOfStandardSession(xpEarned, coinsEarned, finalAccuracy);
@@ -1095,5 +1154,345 @@ export class Games {
     wrapper.querySelector("#standard-finish-btn")?.addEventListener("click", () => {
       this.onFinish(xp, coins, accuracy, this.currentMode);
     });
+  }
+
+  // -------------------------------------------------------------
+  // GAME MODE 8: GENDER DEFENDER (der / die / das challenge)
+  // -------------------------------------------------------------
+  private renderGenderDefender(container: HTMLElement) {
+    const qWord = this.currentQuestions[this.currentQIndex];
+    if (!qWord) return;
+
+    // Extract word without article
+    const match = qWord.german.match(/^(der|die|das)\s+(.+)$/i);
+    const correctArticle = match ? match[1].toLowerCase() : "der";
+    const nounOnly = match ? match[2] : qWord.german;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex flex-col items-center gap-6 text-center max-w-md mx-auto py-4";
+
+    wrapper.innerHTML = `
+      <div class="px-3 py-1 bg-sky-950/60 border border-sky-500/20 text-sky-400 text-[10px] font-mono rounded-full uppercase tracking-wider">
+        Choose correct article: der (masc) | die (fem) | das (neut)
+      </div>
+      <div>
+        <h4 class="text-3xl font-display font-medium text-slate-100 neon-text-blue">${nounOnly}</h4>
+        <p class="text-[11px] text-slate-400 font-mono mt-1">Meaning: "${qWord.english}"</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 w-full mt-2">
+        <button class="gender-btn p-4 rounded-xl border border-sky-500/30 bg-sky-950/20 hover:bg-sky-955/40 text-sky-400 font-display font-bold text-sm tracking-wider cursor-pointer transition-all hover:scale-105 rpg-btn" data-article="der">
+          <span class="block text-lg mb-1">🛡️</span>
+          <span>der</span>
+        </button>
+        <button class="gender-btn p-4 rounded-xl border border-rose-500/30 bg-rose-950/20 hover:bg-rose-955/40 text-rose-400 font-display font-bold text-sm tracking-wider cursor-pointer transition-all hover:scale-105 rpg-btn" data-article="die">
+          <span class="block text-lg mb-1">⚔️</span>
+          <span>die</span>
+        </button>
+        <button class="gender-btn p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-955/40 text-emerald-400 font-display font-bold text-sm tracking-wider cursor-pointer transition-all hover:scale-105 rpg-btn" data-article="das">
+          <span class="block text-lg mb-1">👑</span>
+          <span>das</span>
+        </button>
+      </div>
+
+      <div class="h-8 text-xs font-mono font-medium" id="gender-feedback"></div>
+    `;
+
+    container.appendChild(wrapper);
+
+    const buttons = wrapper.querySelectorAll(".gender-btn");
+    buttons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const chosen = btn.getAttribute("data-article") || "";
+        this.verifyGenderDefender(chosen, correctArticle, btn as HTMLButtonElement, wrapper);
+      });
+    });
+  }
+
+  private verifyGenderDefender(chosen: string, correct: string, clickedBtn: HTMLButtonElement, wrapper: HTMLElement) {
+    const feedback = wrapper.querySelector("#gender-feedback") as HTMLElement;
+    const allBtns = wrapper.querySelectorAll(".gender-btn");
+
+    allBtns.forEach(btn => btn.setAttribute("disabled", "true"));
+
+    const isCorrect = chosen === correct;
+    this.dictionary.reportQuizResult(this.currentQuestions[this.currentQIndex].german, isCorrect);
+
+    if (isCorrect) {
+      this.correctAnswersCount++;
+      AudioSFX.playCorrect();
+      clickedBtn.classList.remove("border-sky-500/30", "border-rose-500/30", "border-emerald-500/30", "bg-sky-950/20", "bg-rose-950/20", "bg-emerald-950/20");
+      clickedBtn.classList.add("border-emerald-500", "bg-emerald-950/30", "scale-[1.05]");
+      if (feedback) {
+        feedback.className = "text-emerald-400 font-bold font-mono h-8 animate-float";
+        feedback.innerText = `✨ SEHR GUT! Correct article is "${correct}"!`;
+      }
+    } else {
+      AudioSFX.playError();
+      clickedBtn.classList.remove("border-sky-500/30", "border-rose-500/30", "border-emerald-500/30", "bg-sky-950/20", "bg-rose-950/20", "bg-emerald-950/20");
+      clickedBtn.classList.add("border-rose-500", "bg-rose-950/30");
+      
+      allBtns.forEach(btn => {
+        if (btn.getAttribute("data-article") === correct) {
+          btn.classList.remove("border-sky-500/30", "border-rose-500/30", "border-emerald-500/30", "bg-sky-950/20", "bg-rose-950/20", "bg-emerald-950/20");
+          btn.classList.add("border-emerald-500", "bg-emerald-950/20", "text-emerald-400");
+        }
+      });
+
+      if (feedback) {
+        feedback.className = "text-rose-400 font-bold font-mono h-8";
+        feedback.innerText = `❌ INCORRECT! The correct article is "${correct}".`;
+      }
+    }
+
+    setTimeout(() => {
+      this.nextQuestion();
+    }, 2000);
+  }
+
+  // -------------------------------------------------------------
+  // GAME MODE 9: RUNE SCRAMBLER (letter-unscrambling spell)
+  // -------------------------------------------------------------
+  private renderRuneScrambler(container: HTMLElement) {
+    const qWord = this.currentQuestions[this.currentQIndex];
+    if (!qWord) return;
+
+    // Strip article from word if present so we scramble the core word
+    const match = qWord.german.match(/^(der|die|das)\s+(.+)$/i);
+    const targetWord = match ? match[2] : qWord.german;
+
+    // Scramble letters
+    const letters = targetWord.split("");
+    const scrambled = this.shuffle([...letters]);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex flex-col items-center gap-5 text-center mt-2 w-full max-w-md mx-auto py-2";
+
+    let currentSpelled: string[] = [];
+
+    wrapper.innerHTML = `
+      <div class="px-3 py-1 bg-violet-950/60 border border-violet-500/20 text-violet-300 text-[10px] font-mono rounded-full uppercase tracking-wider">
+        Spell-weaving: Tap runes in sequence to cast the spell
+      </div>
+      <div>
+        <h4 class="text-md font-mono text-slate-400">Meaning: "${qWord.english}"</h4>
+      </div>
+
+      <!-- Live spelling status slots -->
+      <div class="flex flex-wrap items-center justify-center gap-1.5 min-h-[50px] w-full" id="spelled-slots-container">
+        ${letters.map(() => `
+          <div class="w-9 h-11 border-b-2 border-slate-700 bg-slate-900/40 rounded-t-md flex items-center justify-center text-lg font-display font-bold text-violet-300"></div>
+        `).join("")}
+      </div>
+
+      <!-- Interactive Rune Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mt-2 w-full" id="runes-container">
+        ${scrambled.map((char, i) => `
+          <button class="rune-stone-btn min-w-[38px] h-12 bg-slate-900 border border-slate-700/60 hover:border-violet-400 rounded-xl font-display text-lg font-bold text-slate-200 cursor-pointer hover:bg-slate-800 hover:text-white transition-all transform hover:-translate-y-0.5 shadow-md flex items-center justify-center select-none p-1" data-index="${i}" data-char="${char}">
+            ${char}
+          </button>
+        `).join("")}
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-center gap-3 w-full mt-2">
+        <button class="flex-1 py-1.5 border border-slate-800 hover:border-slate-700 hover:bg-slate-900 text-[10px] font-semibold text-slate-400 rounded-lg rpg-btn cursor-pointer" id="scrambler-reset-btn">
+          🧹 Clear Runes
+        </button>
+      </div>
+
+      <div class="h-8 text-xs font-mono font-medium" id="scrambler-feedback"></div>
+    `;
+
+    container.appendChild(wrapper);
+
+    const slots = wrapper.querySelectorAll("#spelled-slots-container div");
+    const runeBtns = wrapper.querySelectorAll(".rune-stone-btn");
+    const resetBtn = wrapper.querySelector("#scrambler-reset-btn");
+    const feedback = wrapper.querySelector("#scrambler-feedback") as HTMLElement;
+
+    const updateSlots = () => {
+      slots.forEach((slot, idx) => {
+        if (idx < currentSpelled.length) {
+          slot.textContent = currentSpelled[idx];
+          slot.className = "w-9 h-11 border-b-2 border-violet-500 bg-violet-950/20 rounded-t-md flex items-center justify-center text-lg font-display font-bold text-violet-350 animate-pulse";
+        } else {
+          slot.textContent = "";
+          slot.className = "w-9 h-11 border-b-2 border-slate-700 bg-slate-900/40 rounded-t-md flex items-center justify-center text-lg font-display font-bold text-violet-350";
+        }
+      });
+    };
+
+    runeBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (currentSpelled.length >= targetWord.length) return;
+
+        const char = btn.getAttribute("data-char") || "";
+        currentSpelled.push(char);
+        
+        // Disable and fade button
+        btn.setAttribute("disabled", "true");
+        btn.classList.add("opacity-20", "pointer-events-none");
+
+        updateSlots();
+
+        // Check completion
+        if (currentSpelled.length === targetWord.length) {
+          const spelledStr = currentSpelled.join("");
+          const isCorrect = (spelledStr === targetWord);
+          
+          runeBtns.forEach(b => b.setAttribute("disabled", "true"));
+          if (resetBtn) resetBtn.setAttribute("disabled", "true");
+
+          this.dictionary.reportQuizResult(qWord.german, isCorrect);
+
+          if (isCorrect) {
+            this.correctAnswersCount++;
+            AudioSFX.playCorrect();
+            slots.forEach(s => {
+              s.className = "w-9 h-11 border-b-2 border-emerald-500 bg-emerald-950/20 rounded-t-md flex items-center justify-center text-lg font-display font-bold text-emerald-400";
+            });
+            if (feedback) {
+              feedback.className = "text-emerald-400 font-bold font-mono h-8 animate-float";
+              feedback.innerText = "✨ RUNE SPELL BOUND SUCCESS! Flawless assembly!";
+            }
+          } else {
+            AudioSFX.playError();
+            slots.forEach(s => {
+              s.className = "w-9 h-11 border-b-2 border-rose-500 bg-rose-950/20 rounded-t-md flex items-center justify-center text-lg font-display font-bold text-rose-400";
+            });
+            if (feedback) {
+              feedback.className = "text-rose-400 font-bold font-mono h-8";
+              feedback.innerText = `❌ SPELL COLLAPSED! Core word: "${targetWord}"`;
+            }
+          }
+
+          setTimeout(() => {
+            this.nextQuestion();
+          }, 2000);
+        }
+      });
+    });
+
+    resetBtn?.addEventListener("click", () => {
+      currentSpelled = [];
+      updateSlots();
+      runeBtns.forEach(btn => {
+        btn.removeAttribute("disabled");
+        btn.className = "rune-stone-btn min-w-[38px] h-12 bg-slate-900 border border-slate-700/60 hover:border-violet-400 rounded-xl font-display text-lg font-bold text-slate-200 cursor-pointer hover:bg-slate-800 hover:text-white transition-all transform hover:-translate-y-0.5 shadow-md flex items-center justify-center select-none p-1";
+      });
+    });
+  }
+
+  // -------------------------------------------------------------
+  // GAME MODE 10: VOCAB ALCHEMIST (Reverse German selection)
+  // -------------------------------------------------------------
+  private renderAlchemist(container: HTMLElement) {
+    const qWord = this.currentQuestions[this.currentQIndex];
+    if (!qWord) return;
+
+    // Distractors setup
+    const allWords = this.dictionary.getWords();
+    const fallbackOptions = [
+      "der Hund", "die Katze", "das Buch", "der Apfel", "die Sonne", 
+      "das Auto", "der Drache", "die Burg", "das Abenteuer", "der Wald", 
+      "die Blume", "das Haus"
+    ];
+
+    // Build a set of unique distractors
+    const distractorSet = new Set<string>();
+    allWords
+      .filter(w => w.german !== qWord.german)
+      .forEach(w => distractorSet.add(w.german));
+
+    // If we need more distractors, use fallbacks
+    for (const fallback of fallbackOptions) {
+      if (distractorSet.size >= 3) break;
+      if (fallback !== qWord.german) {
+        distractorSet.add(fallback);
+      }
+    }
+
+    const shuffledDistractors = this.shuffle([...distractorSet]).slice(0, 3);
+    const options = this.shuffle([qWord.german, ...shuffledDistractors]);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex flex-col items-center gap-6 text-center max-w-md mx-auto py-4 animate-fade-in";
+
+    wrapper.innerHTML = `
+      <div class="px-3 py-1 bg-amber-950/60 border border-amber-500/20 text-amber-300 text-[10px] font-mono rounded-full uppercase tracking-wider flex items-center gap-1 inline-flex mx-auto">
+        🧪 Alchemist's Brew Quest
+      </div>
+      
+      <div class="space-y-1">
+        <span class="text-xs text-slate-500 uppercase tracking-widest font-mono">Synthesize the German term:</span>
+        <h4 class="text-3xl font-display font-black text-slate-100 italic">"${qWord.english}"</h4>
+      </div>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full mt-2">
+        ${options.map((opt, i) => `
+          <button class="alchemist-option-btn text-left p-4 bg-slate-900 border border-slate-800 hover:border-amber-500 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition-all transform hover:-translate-y-0.5 shadow-md flex items-center justify-between rpg-btn" data-value="${opt}">
+            <div class="flex items-center gap-2.5">
+              <span class="w-5.5 h-5.5 rounded-lg bg-amber-950/45 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-black flex items-center justify-center">${i + 1}</span>
+              <span class="text-slate-200">${opt}</span>
+            </div>
+            <span class="text-sm opacity-20">⚗️</span>
+          </button>
+        `).join("")}
+      </div>
+      
+      <div class="h-8 text-xs font-mono font-medium" id="alchemist-feedback"></div>
+    `;
+
+    container.appendChild(wrapper);
+
+    // Bind events
+    const buttons = wrapper.querySelectorAll(".alchemist-option-btn");
+    buttons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const selected = btn.getAttribute("data-value") || "";
+        this.verifyAlchemistAnswer(selected, qWord, btn as HTMLButtonElement, wrapper);
+      });
+    });
+  }
+
+  private verifyAlchemistAnswer(selected: string, correctWord: Word, clickedBtn: HTMLButtonElement, container: HTMLElement) {
+    const feedback = container.querySelector("#alchemist-feedback") as HTMLElement;
+    const allOptionBtns = container.querySelectorAll(".alchemist-option-btn");
+    
+    allOptionBtns.forEach(btn => btn.setAttribute("disabled", "true"));
+
+    const isCorrect = selected === correctWord.german;
+    this.dictionary.reportQuizResult(correctWord.german, isCorrect);
+
+    if (isCorrect) {
+      this.correctAnswersCount++;
+      AudioSFX.playCorrect();
+      clickedBtn.classList.remove("border-slate-800");
+      clickedBtn.classList.add("border-amber-500", "bg-amber-950/20", "text-amber-300", "scale-[1.03]");
+      if (feedback) {
+        feedback.className = "text-amber-400 font-bold font-mono h-8 animate-float";
+        feedback.innerText = `🧪 BREW PERFECTED! Perfect chemical fusion: "${correctWord.german}"!`;
+      }
+    } else {
+      AudioSFX.playError();
+      clickedBtn.classList.remove("border-slate-800");
+      clickedBtn.classList.add("border-rose-500", "bg-rose-950/20", "text-rose-400");
+      
+      allOptionBtns.forEach(btn => {
+        if (btn.getAttribute("data-value") === correctWord.german) {
+          btn.classList.add("border-amber-500", "bg-amber-950/15", "text-amber-400");
+        }
+      });
+
+      if (feedback) {
+        feedback.className = "text-rose-400 font-bold font-mono h-8";
+        feedback.innerText = `❌ EXPLOSION! Flask blew up! Correct formula is "${correctWord.german}".`;
+      }
+    }
+
+    setTimeout(() => {
+      this.nextQuestion();
+    }, 2000);
   }
 }

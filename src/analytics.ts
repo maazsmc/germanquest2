@@ -12,6 +12,13 @@ export class Analytics {
     this.loadHistory();
   }
 
+  private formatDateLocal(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   public loadHistory() {
     const cached = localStorage.getItem("gq_quiz_history");
     if (cached) {
@@ -39,7 +46,7 @@ export class Analytics {
         const formatOffset = (days: number) => {
           const d = new Date();
           d.setDate(today.getDate() - days);
-          return d.toISOString().split("T")[0];
+          return this.formatDateLocal(d);
         };
         
         this.history = [
@@ -63,7 +70,7 @@ export class Analytics {
   }
 
   public recordSession(score: number, totalQuestions: number, gameMode: string) {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = this.formatDateLocal(new Date());
     this.history.push({
       date: todayStr,
       score: score,
@@ -91,7 +98,7 @@ export class Analytics {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
-      const dayStr = d.toISOString().split("T")[0];
+      const dayStr = this.formatDateLocal(d);
       const items = this.history.filter(h => h.date === dayStr);
       
       // Calculate average score for the day or 0

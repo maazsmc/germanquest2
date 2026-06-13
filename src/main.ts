@@ -3,6 +3,8 @@ import { Dictionary, Word } from "./dictionary";
 import { Analytics } from "./analytics";
 import { Games } from "./games";
 import { getClientOfflineTutorResponse } from "./tutor-offline";
+import { AudioSFX, isSFXEnabled, toggleSFX } from "./audio";
+import { initLanding3DEffects } from "./landing-3d";
 
 // Global user profile state key
 const PROFILE_KEY = "gq_user_profile";
@@ -12,6 +14,7 @@ interface UserProfile {
   xp: number;
   xpNeeded: number;
   streak: number;
+  brokenStreak?: number;     // Store broken streak to allow gold coin repairs!
   coins: number;
   favoriteCategories: string[];
   weakWords: string[];
@@ -29,6 +32,7 @@ const DEFAULT_PROFILE: UserProfile = {
   xp: 0,
   xpNeeded: 100,
   streak: 0,
+  brokenStreak: 0,
   coins: 0,
   favoriteCategories: ["Basics", "Adventure"],
   weakWords: [],
@@ -50,11 +54,11 @@ interface StoreItem {
 }
 
 const STORE_ITEMS: StoreItem[] = [
-  { id: "streak_freeze", name: "Streak Freeze Elixir", description: "Protects your active streak if you fail to train daily.", price: 60, icon: "❄️", category: "shield" },
-  { id: "double_xp", name: "Double XP Quest Scroll", description: "Fills code lessons with triple motivation! +10 XP booster.", price: 100, icon: "📜", category: "powerup" },
-  { id: "health_potion", name: "Rune Potion of Healing", description: "Grants 1 buffer heart in your epic vocab Boss battles.", price: 40, icon: "🧪", category: "powerup" },
-  { id: "title_archmage", name: "Title: Word Archmage", description: "Premium title badge drawn alongside your profile rank.", price: 200, icon: "🌌", category: "customization" },
-  { id: "title_hero", name: "Title: Teutonic Champion", description: "Unlocks high-level respect badge in Hall of Fame rankings.", price: 150, icon: "🏷️", category: "customization" }
+  { id: "streak_freeze", name: "Streak Freeze Elixir", description: "Protects your active streak if you fail to train daily.", price: 40, icon: "❄️", category: "shield" },
+  { id: "double_xp", name: "Double XP Quest Scroll", description: "Fills study sessions with deep dedication! Gives +50 experience points instantly.", price: 50, icon: "📜", category: "powerup" },
+  { id: "health_potion", name: "Rune Potion of Healing", description: "Grants 1 buffer heart in your epic vocab Boss battles.", price: 20, icon: "🧪", category: "powerup" },
+  { id: "title_archmage", name: "Title: Word Archmage", description: "Premium title badge drawn alongside your profile rank.", price: 100, icon: "🌌", category: "customization" },
+  { id: "title_hero", name: "Title: Teutonic Champion", description: "Unlocks high-level respect badge in Hall of Fame rankings.", price: 80, icon: "🏷️", category: "customization" }
 ];
 
 export class AppOrchestrator {
@@ -68,6 +72,7 @@ export class AppOrchestrator {
 
   constructor() {
     this.initProfile();
+    this.initDailyQuests();
     this.initModules();
     this.bindEvents();
     this.bindLandingEvents();
@@ -109,13 +114,40 @@ export class AppOrchestrator {
     this.games = new Games({
       dictionary: this.dictionary,
       onFinish: (xpEarned, coinsEarned, accuracy, gameMode) => {
-        this.rewardExperience(xpEarned, coinsEarned);
+        // Mark practice done inside daily quests progress tracker
+        this.updateDailyQuestsProgress(0, 0, "practice");
+        
+        // Mage Bonus: +25% Gold Coins in Scrambler and Gender Defender modes!
+        let finalCoins = coinsEarned;
+        if (this.profile.customTag === "Spellslinger" && (gameMode === "scrambler" || gameMode === "gender")) {
+          const classBonus = Math.round(coinsEarned * 0.25);
+          finalCoins += classBonus;
+          this.displayBannerNotification(`🔮 Spellslinger Perk: +25% Gold earned! (+${classBonus} Gold Dust)`, "amber");
+        }
+
+        this.rewardExperience(xpEarned, finalCoins);
         this.analytics.recordSession(accuracy, 10, gameMode);
+
+        // Award 'conqueror' achievement if user vanquishes vocabulary boss
+        if (gameMode === "boss" && !this.profile.achievements.includes("conqueror")) {
+          this.profile.achievements.push("conqueror");
+          this.displayBannerNotification("🏆 ACHIEVEMENT UNLOCKED: Vanquished Vocabulary Overlord!", "amber");
+        }
         
         // Return to standard dashboard
         this.switchView("dashboard");
         this.renderAllViews();
         this.fetchSmartAIRecommendations(); // Refresh recommendation based on possible weak words changes
+      },
+      hasExtraBossHeart: () => {
+        return this.profile.achievements.includes("extra_boss_heart");
+      },
+      consumeExtraBossHeart: () => {
+        const heartIdx = this.profile.achievements.indexOf("extra_boss_heart");
+        if (heartIdx !== -1) {
+          this.profile.achievements.splice(heartIdx, 1);
+          this.saveProfile();
+        }
       }
     });
 
@@ -137,13 +169,14 @@ export class AppOrchestrator {
 
   // Daily Streak Management logic
   private validateDailyStreak() {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = this.formatDateLocal(new Date());
     if (!this.profile.lastPracticeDate) return;
 
-    const lastDate = new Date(this.profile.lastPracticeDate);
-    const todayDate = new Date(todayStr);
-    const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Use noon reference to calculate exact integer day difference safely to avoid DST anomalies
+    const lastDate = new Date(this.profile.lastPracticeDate + "T12:00:00");
+    const todayDate = new Date(todayStr + "T12:00:00");
+    const diffTime = todayDate.getTime() - lastDate.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays > 1) {
       // Streak broken unless they have a Streak Freeze
@@ -153,6 +186,10 @@ export class AppOrchestrator {
         this.profile.achievements.splice(freezeIndex, 1);
         this.displayBannerNotification("❄️ Streak Freeze Elixir Saved Your Active Streak!");
       } else {
+        if (this.profile.streak > 0) {
+          this.profile.brokenStreak = this.profile.streak;
+          this.displayBannerNotification(`💔 Oh no! Your active ${this.profile.streak}-day streak expired. Use your Gold Coins to repair it!`, "indigo");
+        }
         this.profile.streak = 0;
       }
       this.saveProfile();
@@ -161,7 +198,7 @@ export class AppOrchestrator {
 
   // Award rewards & check levels
   private rewardExperience(xpGain: number, coinsGain: number) {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = this.formatDateLocal(new Date());
     
     // Day tracker streak triggers
     if (this.profile.lastPracticeDate !== todayStr) {
@@ -176,8 +213,25 @@ export class AppOrchestrator {
       }
     }
 
-    this.profile.xp += xpGain;
+    // Shadow-Blade (Rogue) Perk: +15% XP
+    let finalXpGain = xpGain;
+    if (this.profile.customTag === "Shadow-Blade") {
+      finalXpGain = Math.round(xpGain * 1.15);
+      this.displayBannerNotification(`🦅 Shadow-Blade Perk Activated: +15% XP earned! (+${finalXpGain - xpGain} XP)`, "emerald");
+    }
+
+    this.profile.xp += finalXpGain;
     this.profile.coins += coinsGain;
+
+    // Track for quest completion
+    this.updateDailyQuestsProgress(finalXpGain, coinsGain);
+
+    // Play retro game chimes
+    if (coinsGain > 0) {
+      AudioSFX.playCoin();
+    } else if (xpGain > 0) {
+      AudioSFX.playCorrect();
+    }
 
     // Check level progression up
     if (this.profile.xp >= this.profile.xpNeeded) {
@@ -194,6 +248,8 @@ export class AppOrchestrator {
       }
       
       this.displayBannerNotification(`🎉 CONGRATULATIONS! You advanced to Level ${this.profile.level} - ${this.getLevelTitle(this.profile.level)}!`, "emerald");
+      // Epic level up synthesizer fanfare
+      AudioSFX.playLevelUp();
     }
 
     // Update vocabulary targets
@@ -324,10 +380,13 @@ export class AppOrchestrator {
     this.renderHUD();
     this.renderDashboardStats();
     this.renderDashboardAchievements();
+    this.renderDailyQuests();
+    this.renderInteractiveStreakWidget();
     this.renderDictionaryGrid();
     this.renderShopShelf();
     this.renderLeaderboardList();
     this.renderAIChatMemory();
+    this.renderClassPerks();
   }
 
   // Renders stats card
@@ -384,17 +443,22 @@ export class AppOrchestrator {
     const box = document.getElementById("achievements-container");
     if (!box) return;
 
-    // Static checklist
+    // Static check list matching current project states
     const achievementsList = [
       { id: "recruit", title: "Recruit Forge", desc: "Forge your default handbook", icon: "🛡️" },
-      { id: "level_3", title: "Gladiator Master", desc: "Unlock level 3 questlines", icon: "⚔️" },
+      { id: "scholar", title: "Dictionary Scholar", desc: "Curated a deck of 15+ German terms", icon: "📚" },
+      { id: "level_3", title: "Teutonic Master", desc: "Unlock level 3 rank", icon: "⚔️" },
       { id: "streak_3", title: "Ethereal Flame", desc: "Maintain a 3-day daily streak", icon: "🔥" },
-      { id: "conqueror", title: "Taiming Overlord", desc: "Vanquished vocabulary boss", icon: "👹" }
+      { id: "conqueror", title: "Vanquisher Overlord", desc: "Defeated Vocabulary Overlord", icon: "👹" },
+      { id: "wealthy", title: "Virtual Tycoon", desc: "Possess 300+ shiny gold coins", icon: "🪙" }
     ];
 
     box.innerHTML = "";
     achievementsList.forEach(ach => {
-      const isUnlocked = this.profile.achievements.includes(ach.id) || (ach.id === "recruit" && this.dictionary.getWords().length > 0);
+      const isUnlocked = this.profile.achievements.includes(ach.id) 
+        || (ach.id === "recruit" && this.dictionary.getWords().length > 0)
+        || (ach.id === "scholar" && this.dictionary.getWords().length >= 15)
+        || (ach.id === "wealthy" && this.profile.coins >= 300);
       
       const card = document.createElement("div");
       card.className = `p-3 rounded-xl flex items-center gap-3 border ${
@@ -411,6 +475,433 @@ export class AppOrchestrator {
         </div>
       `;
       box.appendChild(card);
+    });
+  }
+
+  // Daily Quests system methods
+  private dailyQuests: any[] = [];
+
+  private initDailyQuests() {
+    const todayStr = this.formatDateLocal(new Date());
+    const cachedQuests = localStorage.getItem("gq_daily_quests");
+    const cachedDate = localStorage.getItem("gq_daily_quests_date");
+
+    if (cachedQuests && cachedDate === todayStr) {
+      try {
+        this.dailyQuests = JSON.parse(cachedQuests);
+        return;
+      } catch (e) {
+        // rebuild fallback
+      }
+    }
+
+    // Generate daily random RPG-flavored quests
+    this.dailyQuests = [
+      {
+        id: "quest_practice",
+        title: "Daily Sentry Patrol",
+        desc: "Complete any gaming challenge inside the Training Arena",
+        icon: "⚔️",
+        target: 1,
+        current: 0,
+        rewardCoins: 30,
+        rewardXp: 15,
+        claimed: false
+      },
+      {
+        id: "quest_coins",
+        title: "Dungeon Loot",
+        desc: "Earn at least 50 Gold Coins from your lesson study sessions",
+        icon: "🪙",
+        target: 50,
+        current: 0,
+        rewardCoins: 40,
+        rewardXp: 20,
+        claimed: false
+      },
+      {
+        id: "quest_tutor",
+        title: "Wisdom of the Owls",
+        desc: "Converse with Companion Maaz in the AI Citadel Tutor",
+        icon: "🦉",
+        target: 1,
+        current: 0,
+        rewardCoins: 35,
+        rewardXp: 15,
+        claimed: false
+      }
+    ];
+
+    localStorage.setItem("gq_daily_quests", JSON.stringify(this.dailyQuests));
+    localStorage.setItem("gq_daily_quests_date", todayStr);
+  }
+
+  private saveDailyQuests() {
+    localStorage.setItem("gq_daily_quests", JSON.stringify(this.dailyQuests));
+  }
+
+  private updateDailyQuestsProgress(xpGain: number, coinsGain: number, type?: "practice" | "tutor") {
+    let changed = false;
+    this.dailyQuests.forEach(quest => {
+      if (quest.claimed) return;
+
+      if (quest.id === "quest_practice" && type === "practice") {
+        quest.current = Math.min(quest.target, quest.current + 1);
+        changed = true;
+      } else if (quest.id === "quest_coins" && coinsGain > 0) {
+        quest.current = Math.min(quest.target, quest.current + coinsGain);
+        changed = true;
+      } else if (quest.id === "quest_tutor" && type === "tutor") {
+        quest.current = Math.min(quest.target, quest.current + 1);
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      this.saveDailyQuests();
+      this.renderDailyQuests();
+    }
+  }
+
+  private claimQuestReward(id: string) {
+    const quest = this.dailyQuests.find(q => q.id === id);
+    if (!quest || quest.claimed || quest.current < quest.target) return;
+
+    quest.claimed = true;
+    this.saveDailyQuests();
+
+    // Gift rewards
+    this.profile.coins += quest.rewardCoins;
+    this.profile.xp += quest.rewardXp;
+
+    // Play retro synthetic bells and register chimes
+    AudioSFX.playCoin();
+    AudioSFX.playVictory();
+
+    this.displayBannerNotification(`🏆 Quest Claimed! Received +${quest.rewardCoins} Gold and +${quest.rewardXp} XP!`, "emerald");
+
+    // Upgrade verification
+    if (this.profile.xp >= this.profile.xpNeeded) {
+      this.profile.level += 1;
+      this.profile.xp -= this.profile.xpNeeded;
+      this.profile.xpNeeded = Math.round(this.profile.xpNeeded * 1.5);
+      this.profile.coins += 100;
+      this.displayBannerNotification(`🎉 HEROIC ASCENSION! You leveled up to Level ${this.profile.level}!`, "emerald");
+      AudioSFX.playLevelUp();
+    }
+
+    this.saveProfile();
+    this.renderHUD();
+    this.renderDailyQuests();
+    this.renderAllViews();
+  }
+
+  private renderDailyQuests() {
+    const container = document.getElementById("daily-questboard-container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    this.dailyQuests.forEach(quest => {
+      const isComplete = quest.current >= quest.target;
+      const pct = Math.min(100, Math.round((quest.current / quest.target) * 100));
+
+      const card = document.createElement("div");
+      card.className = `p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+        quest.claimed 
+          ? "bg-slate-900/40 border-slate-800/80 text-slate-500 opacity-60" 
+          : isComplete 
+            ? "bg-violet-950/15 border-violet-500/40 text-slate-150 glow-purple" 
+            : "bg-slate-900/60 border-slate-800 text-slate-300"
+      }`;
+
+      card.innerHTML = `
+        <div class="flex items-start gap-3">
+          <span class="text-2xl p-2 bg-slate-950/60 rounded-xl border border-slate-800 shrink-0 select-none">${quest.icon}</span>
+          <div class="text-left">
+            <h4 class="font-display font-bold text-xs text-slate-200 leading-snug">${quest.title}</h4>
+            <p class="text-[10px] text-slate-400 font-sans mt-0.5 leading-relaxed">${quest.desc}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 mt-1">
+          <div class="flex justify-between text-[9px] font-mono text-slate-400 leading-none">
+            <span>Progress</span>
+            <span>${quest.current} / ${quest.target}</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-850">
+            <div class="h-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-300" style="width: ${pct}%"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between border-t border-slate-800/60 pt-2.5 mt-1">
+          <div class="flex items-center gap-1.5 text-[9px] font-mono text-slate-400">
+            <span>Reward:</span>
+            <span class="text-amber-400">🪙 ${quest.rewardCoins}g</span>
+            <span>/</span>
+            <span class="text-violet-400">✨ ${quest.rewardXp}xp</span>
+          </div>
+
+          ${
+            quest.claimed 
+              ? `<span class="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1">🛡️ Claimed</span>` 
+              : isComplete
+                ? `<button class="claim-quest-btn px-2.5 py-1 text-[10px] font-bold text-white rounded bg-emerald-600 hover:bg-emerald-500 transition-all cursor-pointer animate-pulse shrink-0" data-id="${quest.id}">Claim</button>`
+                : `<span class="text-[9px] font-mono text-slate-500">Studying...</span>`
+          }
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+
+    // Attach click events
+    container.querySelectorAll(".claim-quest-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-id") || "";
+        this.claimQuestReward(id);
+      });
+    });
+  }
+
+  // Helper formats dates correctly to YYYY-MM-DD
+  private formatDateLocal(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  // Get date references for Sunday to Saturday of active week
+  private getCurrentWeekDates(): Date[] {
+    const current = new Date();
+    const week: Date[] = [];
+    // Get Sunday of the current week
+    const sunday = new Date(current);
+    const day = current.getDay(); // 0 = Sunday, 1 = Monday ...
+    sunday.setDate(current.getDate() - day);
+    
+    for (let i = 0; i < 7; i++) {
+      const nextDay = new Date(sunday);
+      nextDay.setDate(sunday.getDate() + i);
+      week.push(nextDay);
+    }
+    return week;
+  }
+
+  // Interactive high-fidelity Duolingo-style Streak Widget with Gold Coin repair
+  private renderInteractiveStreakWidget() {
+    const container = document.getElementById("interactive-streak-widget");
+    if (!container) return;
+
+    const streakCount = this.profile.streak;
+    const brokenStreak = this.profile.brokenStreak || 0;
+    const todayStr = this.formatDateLocal(new Date());
+    const weekDates = this.getCurrentWeekDates();
+
+    // Check if practiced today
+    const practicedToday = this.analytics.getHistory().some(h => h.date === todayStr) || this.profile.lastPracticeDate === todayStr;
+
+    let widgetContent = "";
+
+    // 1. Title/Header (Flame + bold streak text)
+    widgetContent += `
+      <div class="flex flex-col items-center gap-1">
+        <!-- Giant Duolingo Fire Flame element with overlay streak number -->
+        <div class="relative w-28 h-28 flex items-center justify-center select-none select-none animate-float">
+          <!-- Flame SVG with glowing effects -->
+          <svg class="w-full h-full filter drop-shadow-[0_6px_16px_rgba(249,115,22,0.45)]" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2050/svg">
+            <!-- Outer orange gradient fire petal -->
+            <path d="M50 8 C50 8 82 38 82 62 C82 78.5 67.5 92 50 92 C32.5 92 18 78.5 18 62 C18 38 50 8 50 8 Z" fill="url(#outerFlameGrad)" />
+            <!-- Inner glowing yellow fire petal -->
+            <path d="M50 32 C50 32 70 52 70 67 C70 77.5 61 86 50 86 C39 86 30 77.5 30 67 C30 52 50 32 50 32 Z" fill="url(#innerFlameGrad)" />
+            <defs>
+              <linearGradient id="outerFlameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#f97316" />
+                <stop offset="100%" stop-color="#ea580c" />
+              </linearGradient>
+              <linearGradient id="innerFlameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#eab308" />
+                <stop offset="100%" stop-color="#ca8a04" />
+              </linearGradient>
+            </defs>
+          </svg>
+          
+          <!-- Large White outline-stroke text centered on the bottom half of the Flame -->
+          <div class="absolute bottom-4 text-center font-display leading-none tracking-tight text-white select-none pointer-events-none" style="font-size: 32px; font-weight: 900; -webkit-text-stroke: 4px #0f171c; paint-order: stroke fill; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
+            ${streakCount}
+          </div>
+        </div>
+        
+        <h3 class="text-orange-400 font-extrabold text-lg tracking-wider uppercase mt-1 leading-none select-none drop-shadow-sm flex items-center gap-1.5">
+          <span>🔥</span> ${streakCount} DAY STREAK!
+        </h3>
+      </div>
+    `;
+
+    // 2. Weekly grid panel (Su Mo Tu We Th Fr Sa)
+    widgetContent += `
+      <div class="flex items-center justify-between w-full max-w-sm mx-auto bg-slate-950/45 p-4 rounded-2xl border border-slate-800/80 mt-1 gap-1 relative z-10 transition-all">
+        ${weekDates.map((date, idx) => {
+          const dateStr = this.formatDateLocal(date);
+          const isPracticed = this.analytics.getHistory().some(h => h.date === dateStr) || this.profile.lastPracticeDate === dateStr;
+          const isNextPracticed = idx < 6 && (() => {
+            const nextDateStr = this.formatDateLocal(weekDates[idx + 1]);
+            return this.analytics.getHistory().some(h => h.date === nextDateStr) || this.profile.lastPracticeDate === nextDateStr;
+          })();
+          
+          const isToday = dateStr === todayStr;
+          const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+          const dayNameFull = dayNames[idx];
+          const dayNameShort = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][idx];
+          const dayNumber = idx + 1; // 1 to 7 range
+          
+          return `
+            <div class="flex flex-col items-center gap-2 flex-1 relative ${isToday ? 'scale-105 z-20' : ''}">
+              <!-- Underneath Connection capsule pill -->
+              ${isPracticed && isNextPracticed ? `
+                <div class="absolute left-1/2 top-[32px] w-[calc(100%+14px)] h-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full -z-10 opacity-95 shadow-inner"></div>
+              ` : ""}
+              
+              <!-- Day label text header (bold if today) -->
+              <span class="text-[9.5px] font-mono tracking-wider select-none text-center ${
+                isToday 
+                  ? 'text-violet-400 font-black border border-violet-500/40 bg-violet-950/70 px-1 py-0.5 rounded shadow-[0_0_8px_rgba(139,92,246,0.4)]' 
+                  : isPracticed 
+                    ? 'text-orange-400 font-bold' 
+                    : 'text-slate-500 font-medium'
+              }">
+                ${dayNameShort}${isToday ? ' ★' : ''}
+              </span>
+              
+              <!-- Circular graphic slot -->
+              <div class="relative z-10 flex items-center justify-center h-9">
+                ${isPracticed 
+                  ? `
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 via-amber-400 to-orange-500 text-slate-950 font-black flex items-center justify-center text-sm shadow-[0_0_10px_rgba(249,115,22,0.4)] border-2 border-slate-950 select-none animate-float">
+                      ✓
+                    </div>
+                  ` 
+                  : idx === 6 
+                    ? `
+                      <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs select-none text-slate-500 hover:text-amber-400 cursor-help" title="Weekly Star Finish Goal">
+                        ⭐
+                      </div>
+                    ` 
+                    : isToday
+                      ? `
+                        <div class="w-8.5 h-8.5 rounded-full bg-slate-950 border-2 border-violet-500 ring-4 ring-violet-500/20 flex items-center justify-center select-none shadow-[0_0_12px_rgba(139,92,246,0.5)]">
+                          <div class="w-3.5 h-3.5 rounded-full bg-violet-400 animate-ping absolute opacity-75"></div>
+                          <div class="relative w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse"></div>
+                        </div>
+                      `
+                      : `
+                        <div class="w-8 h-8 rounded-full bg-slate-900/80 border border-slate-800 flex items-center justify-center select-none">
+                          <div class="w-2.5 h-2.5 rounded-full bg-slate-700"></div>
+                        </div>
+                      `
+                }
+              </div>
+
+              <!-- Explicit Day Index (D1 - D7) under the bubble, emphasizing Sunday is Day 1 -->
+              <span class="text-[8px] font-mono tracking-tighter select-none ${
+                isToday 
+                  ? 'text-violet-300 font-black' 
+                  : isPracticed 
+                    ? 'text-orange-400 font-bold' 
+                    : 'text-slate-600 font-medium'
+              }">
+                D${dayNumber}
+              </span>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+
+    // 3. Informational status bar below the week tracker
+    widgetContent += `
+      <div class="text-xs text-slate-350 leading-relaxed max-w-sm text-center font-sans mt-0.5">
+        ${practicedToday 
+          ? `Great start! Keep your <strong class="text-amber-400 font-medium">perfect streak</strong> going tomorrow.` 
+          : `Unravel ancient spells! Complete any gaming challenge today to keep your streak burning.`
+        }
+      </div>
+    `;
+
+    // 4. Streak Repaired UI component if a broken streak exists
+    if (brokenStreak > 0) {
+      widgetContent += `
+        <div class="mt-2 w-full max-w-md bg-gradient-to-tr from-rose-950/60 to-slate-950 border border-rose-500/20 p-4 rounded-2xl flex flex-col items-center gap-2.5 shadow-xl animate-float">
+          <div class="flex items-center gap-1.5 text-center text-xs font-bold text-rose-300">
+            <span>💔</span> STREAK AT RISK: LOST AN ACTIVE ${brokenStreak}-DAY STREAK!
+          </div>
+          <p class="text-[10.5px] text-slate-400 leading-normal max-w-sm">
+            Silence extinguished your campfire, but your dedication can light it once more. Repair your full daily streak now!
+          </p>
+          <button id="repair-streak-action-btn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:from-amber-400 hover:to-orange-400 font-bold text-xs text-slate-950 shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-[0.97] hover:scale-[1.03] select-none">
+            <span>🔧</span> REPAIR STREAK (🪙 200 Gold Coins)
+          </button>
+        </div>
+      `;
+    }
+
+    container.innerHTML = widgetContent;
+
+    // Attach click listener for streak repair
+    const repairBtn = container.querySelector("#repair-streak-action-btn");
+    if (repairBtn) {
+      repairBtn.addEventListener("click", () => {
+        if (this.profile.coins >= 200) {
+          this.profile.coins -= 200;
+          this.profile.streak = brokenStreak;
+          this.profile.brokenStreak = 0;
+          
+          this.saveProfile();
+          AudioSFX.playCoin();
+          AudioSFX.playVictory();
+          
+          this.displayBannerNotification(`🔥 STREAK RESTORED! Your legendary ${this.profile.streak}-day streak burns bright!`, "emerald");
+          this.renderAllViews();
+        } else {
+          AudioSFX.playError();
+          this.displayBannerNotification("❌ Insufficient Funds! Earn 200 Gold Coins from training games or quests to buy a repair.", "purple");
+        }
+      });
+    }
+  }
+
+  private renderClassPerks() {
+    const elBadge = document.getElementById("hud-class-badge");
+    const elDesc = document.getElementById("hud-class-perk-desc");
+    if (!elBadge || !elDesc) return;
+
+    if (!this.profile.customTag || this.profile.customTag === "Cavalier" || this.profile.customTag === "None") {
+      this.profile.customTag = "Spellslinger";
+    }
+
+    const curClass = this.profile.customTag;
+    
+    if (curClass === "Spellslinger") {
+      elBadge.innerHTML = "🔮 Spellslinger";
+      elDesc.innerHTML = `<span class="text-violet-400 font-semibold underline">Mage Perk:</span> Earn <strong class="text-amber-400">+25% Gold Coins</strong> in Rune Scrambler & Gender Defender.`;
+    } else if (curClass === "Shield-Bearer") {
+      elBadge.innerHTML = "🛡️ Shield-Bearer";
+      elDesc.innerHTML = `<span class="text-sky-400 font-semibold underline">Warrior Perk:</span> Start Boss Battles with <strong class="text-rose-400">+1 Extra Heart (Max 4!)</strong>.`;
+    } else if (curClass === "Shadow-Blade") {
+      elBadge.innerHTML = "🦅 Shadow-Blade";
+      elDesc.innerHTML = `<span class="text-emerald-400 font-semibold underline">Rogue Perk:</span> Earn <strong class="text-emerald-400">+15% bonus experience (XP)</strong> from all games.`;
+    }
+
+    // Set highlights on selected buttons
+    const classButtons = document.querySelectorAll(".class-select-btn");
+    classButtons.forEach(btn => {
+      const cls = btn.getAttribute("data-class");
+      if (cls === curClass) {
+        btn.className = "class-select-btn p-1.5 rounded-lg border border-violet-500 bg-violet-950/40 text-[10px] font-bold text-white shadow-md cursor-pointer transition-all text-center";
+      } else {
+        btn.className = "class-select-btn p-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-[10px] font-bold text-slate-350 hover:bg-slate-800 hover:text-white cursor-pointer hover:border-violet-500/50 transition-all text-center";
+      }
     });
   }
 
@@ -1035,6 +1526,19 @@ export class AppOrchestrator {
 
   // Bind key inputs clicks
   private bindEvents() {
+    // Interactive Guild Class selectors
+    document.querySelectorAll(".class-select-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const selectedClass = btn.getAttribute("data-class") || "Spellslinger";
+        this.profile.customTag = selectedClass;
+        this.games.currentUserClass = selectedClass;
+        this.saveProfile();
+        AudioSFX.playCoin();
+        this.displayBannerNotification(`⚔️ Training class synced: ${selectedClass}! Active perk loaded.`, "indigo");
+        this.renderAllViews();
+      });
+    });
+
     // 1. Dynamic Tab routing
     const tabs = document.querySelectorAll(".nav-tab");
     tabs.forEach(tab => {
@@ -1067,6 +1571,31 @@ export class AppOrchestrator {
       };
       closeWordBtn?.addEventListener("click", hideModal);
       cancelWordBtn?.addEventListener("click", hideModal);
+    }
+
+    // DAILY STREAK & CAMPFIRE REPAIR MODAL HANDLERS
+    const streakTooltip = document.getElementById("streak-tooltip");
+    const streakModal = document.getElementById("streak-modal");
+    if (streakTooltip && streakModal) {
+      streakTooltip.addEventListener("click", () => {
+        this.renderInteractiveStreakWidget();
+        streakModal.classList.remove("hidden");
+        streakModal.classList.add("flex");
+      });
+    }
+
+    const closeStreakBtn = document.getElementById("close-streak-modal-btn");
+    if (streakModal && closeStreakBtn) {
+      const hideStreakModal = () => {
+        streakModal.classList.remove("flex");
+        streakModal.classList.add("hidden");
+      };
+      closeStreakBtn.addEventListener("click", hideStreakModal);
+      streakModal.addEventListener("click", (e) => {
+        if (e.target === streakModal) {
+          hideStreakModal();
+        }
+      });
     }
 
     // Submits new Word Forge form
@@ -1150,11 +1679,15 @@ export class AppOrchestrator {
                                     : mode === "listening" ? "Listening Challenge"
                                     : mode === "speaking" ? "Speaking Trial"
                                     : mode === "matching" ? "Tile Memory Matching"
+                                    : mode === "gender" ? "Gender Defender"
+                                    : mode === "scrambler" ? "Rune Spell Scrambler"
+                                    : mode === "alchemist" ? "Vocab Alchemist Brew"
                                     : "Vocabulary Overlord Boss Battle";
         }
 
         // Run game engine
-        this.games.start(mode, 5); // 5 Questions standard practices session
+        this.games.currentUserClass = this.profile.customTag || "Spellslinger";
+        this.games.start(mode, 10); // 10 Questions standard practices session
       });
     });
 
@@ -1369,13 +1902,17 @@ export class AppOrchestrator {
   }
 
   // Display glowing, modern gaming notifications banner
-  private displayBannerNotification(message: string, theme: "purple" | "emerald" | "blue" = "purple") {
+  private displayBannerNotification(message: string, theme: "purple" | "emerald" | "blue" | "amber" | "indigo" = "purple") {
     const notifyDiv = document.createElement("div");
     // Styling colors
     const colorClass = theme === "emerald" 
       ? "from-emerald-950/95 to-emerald-900 border-emerald-500 text-emerald-300 decoration-emerald-400"
       : theme === "blue"
       ? "from-blue-950/95 to-blue-900 border-blue-500 text-blue-300 decoration-blue-400"
+      : theme === "amber"
+      ? "from-amber-950/95 to-amber-900 border-amber-500 text-amber-300 decoration-amber-400"
+      : theme === "indigo"
+      ? "from-indigo-950/95 to-indigo-900 border-indigo-500 text-indigo-300 decoration-indigo-400"
       : "from-violet-950/95 to-violet-900 border-violet-500 text-violet-300 decoration-violet-400 font-mono";
 
     notifyDiv.className = `fixed bottom-4 right-4 z-50 p-4 border rounded-2xl bg-gradient-to-tr ${colorClass} max-w-sm shadow-2xl flex items-center gap-3 transition-all duration-300 animate-float border-l-4 font-mono text-xs select-none`;
@@ -2024,6 +2561,9 @@ export class AppOrchestrator {
   private demoWordIndex = 0;
 
   private initLandingInteractiveDemo() {
+    // Start gorgeous 3D particle canvas and card tilt rotation
+    initLanding3DEffects("sandbox-card", "landing-3d-canvas");
+
     const DEMO_WORDS = [
       { german: "die Zauberei", english: "magic" },
       { german: "der Drache", english: "dragon" },
